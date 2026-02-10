@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en-IN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- Primary SEO -->
+    <title>Sporz | Secure Athlete Access</title>
+    <meta name="description" content="Access the elite Indian athlete dashboard. Secure login and registration for Sporz performance tracking.">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --brand-blue: #0070f3;
+            --brand-cyan: #00dfd8;
+            --dark-bg: #020202;
+            --glass-border: rgba(255, 255, 255, 0.08);
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: var(--dark-bg);
+            color: #ffffff;
+            /* Prevents weird scroll behavior on mobile during keyboard popup */
+            height: 100vh;
+            height: 100dvh; 
+            overflow: hidden;
+        }
+
+        /* Ambient Dynamic Background */
+        .bg-mesh {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: 
+                radial-gradient(circle at 80% 20%, #0044ff1a 0%, transparent 40%),
+                radial-gradient(circle at 20% 80%, #00dfd80a 0%, transparent 40%);
+            z-index: -1;
+        }
+
+        /* Responsive Entry Animations */
+        @keyframes revealUp {
+            from { opacity: 0; transform: translateY(20px); filter: blur(10px); }
+            to { opacity: 1; transform: translateY(0); filter: blur(0); }
+        }
+
+        .animate-reveal { animation: revealUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+
+        .glass-card {
+            background: rgba(10, 10, 10, 0.7);
+            backdrop-filter: blur(40px);
+            -webkit-backdrop-filter: blur(40px);
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+        }
+
+        .input-field {
+            background: #0a0a0a;
+            border: 1px solid #1a1a1a;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            appearance: none; /* Removes iOS default styling */
+        }
+
+        .input-field:focus {
+            border-color: var(--brand-blue);
+            box-shadow: 0 0 0 4px rgba(0, 112, 243, 0.15);
+            background: #000;
+        }
+
+        .btn-premium {
+            background: linear-gradient(135deg, #0070f3 0%, #0044ff 100%);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-premium:active {
+            transform: scale(0.98);
+        }
+
+        /* Password Strength Meter */
+        .strength-bar { height: 4px; border-radius: 2px; transition: all 0.4s ease; }
+
+        .hidden { display: none; }
+
+        /* Mobile specific adjustments */
+        @media (max-width: 640px) {
+            .glass-card {
+                padding: 1.5rem !important;
+                border-radius: 2rem !important;
+            }
+            h1 { font-size: 4rem !important; }
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center p-4 sm:p-6">
+    <div class="bg-mesh"></div>
+
+    <!-- Main Auth Interface -->
+    <main class="w-full max-w-md z-10 animate-reveal">
+        
+        <!-- Brand Identity -->
+        <header class="text-center mb-6 sm:mb-10">
+            <h1 class="text-6xl sm:text-7xl font-900 tracking-tighter italic bg-gradient-to-b from-white to-blue-600 bg-clip-text text-transparent select-none">SPORZ</h1>
+            <p class="text-slate-500 font-bold tracking-[0.3em] uppercase text-[10px] mt-2">Elite Indian Athletics</p>
+        </header>
+
+        <!-- Container for Views -->
+        <div class="relative w-full">
+            
+            <!-- Signup View -->
+            <section id="signup-view" class="glass-card p-6 sm:p-10 rounded-[2.5rem]">
+                <div class="mb-6 sm:mb-8">
+                    <h2 class="text-2xl sm:text-3xl font-extrabold text-white">Join the Elite</h2>
+                    <p class="text-slate-500 text-sm mt-1">Create your athlete profile.</p>
+                </div>
+                
+                <form id="signup-form" class="space-y-4 sm:space-y-6">
+                    <div class="space-y-2">
+                        <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Phone Number</label>
+                        <div class="relative">
+                            <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold border-r border-white/10 pr-3">+91</span>
+                            <input type="tel" id="signup-phone" required placeholder="9876543210" maxlength="10" inputmode="tel"
+                                class="w-full pl-16 pr-5 py-3.5 sm:py-4 rounded-2xl input-field text-white font-semibold">
+                        </div>
+                    </div>
+
+                    <div class="space-y-2">
+                        <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Password</label>
+                        <div class="relative">
+                            <input type="password" id="signup-pass" required placeholder="Min. 8 characters" 
+                                class="w-full px-5 py-3.5 sm:py-4 rounded-2xl input-field text-white">
+                            <button type="button" onclick="togglePass('signup-pass')" class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-600 hover:text-white transition p-1">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                            </button>
+                        </div>
+                        <!-- Strength Meter -->
+                        <div class="mt-2 flex gap-1 px-1">
+                            <div id="sm-1" class="strength-bar flex-1 bg-white/10"></div>
+                            <div id="sm-2" class="strength-bar flex-1 bg-white/10"></div>
+                            <div id="sm-3" class="strength-bar flex-1 bg-white/10"></div>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="w-full btn-premium py-3.5 sm:py-4 rounded-2xl font-bold text-white text-lg mt-2">
+                        Register Account
+                    </button>
+                </form>
+
+                <p class="text-center text-sm text-slate-500 mt-6 sm:mt-8">
+                    Already a member? 
+                    <button onclick="switchView('login')" class="text-blue-500 font-bold hover:text-blue-400 transition ml-1 underline underline-offset-4">Login here</button>
+                </p>
+            </section>
+
+            <!-- Login View -->
+            <section id="login-view" class="glass-card p-6 sm:p-10 rounded-[2.5rem] hidden">
+                <div class="mb-6 sm:mb-8">
+                    <h2 class="text-2xl sm:text-3xl font-extrabold text-white">Welcome Back</h2>
+                    <p class="text-slate-500 text-sm mt-1">Enter your athlete credentials.</p>
+                </div>
+
+                <form id="login-form" class="space-y-4 sm:space-y-6">
+                    <div class="space-y-2">
+                        <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Registered Phone</label>
+                        <div class="relative">
+                            <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold border-r border-white/10 pr-3">+91</span>
+                            <input type="tel" id="login-phone" required placeholder="9876543210" maxlength="10" inputmode="tel"
+                                class="w-full pl-16 pr-5 py-3.5 sm:py-4 rounded-2xl input-field text-white font-semibold">
+                        </div>
+                    </div>
+                    <div class="space-y-2">
+                        <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Password</label>
+                        <input type="password" id="login-pass" required placeholder="••••••••" 
+                            class="w-full px-5 py-3.5 sm:py-4 rounded-2xl input-field text-white">
+                    </div>
+                    <button type="submit" class="w-full btn-premium py-3.5 sm:py-4 rounded-2xl font-bold text-white text-lg mt-2">
+                        Secure Access
+                    </button>
+                </form>
+
+                <p class="text-center text-sm text-slate-500 mt-6 sm:mt-8">
+                    New athlete? 
+                    <button onclick="switchView('signup')" class="text-blue-500 font-bold hover:text-blue-400 transition ml-1 underline underline-offset-4">Join the Elite</button>
+                </p>
+            </section>
+        </div>
+
+        <!-- System Message / Toast -->
+        <div id="toast" class="fixed bottom-8 sm:bottom-12 left-1/2 -translate-x-1/2 px-6 sm:px-8 py-3 rounded-full glass-card text-xs font-bold tracking-tight text-white hidden flex items-center gap-3 border-blue-500/30 whitespace-nowrap">
+            <span id="toast-text"></span>
+        </div>
+    </main>
+
+    <script>
+        const views = {
+            signup: document.getElementById('signup-view'),
+            login: document.getElementById('login-view'),
+            toast: document.getElementById('toast'),
+            toastText: document.getElementById('toast-text'),
+            strength: [
+                document.getElementById('sm-1'),
+                document.getElementById('sm-2'),
+                document.getElementById('sm-3')
+            ]
+        };
+
+        // UI Helpers
+        function switchView(to) {
+            views.signup.classList.toggle('hidden', to === 'login');
+            views.login.classList.toggle('hidden', to === 'signup');
+        }
+
+        function togglePass(id) {
+            const input = document.getElementById(id);
+            input.type = input.type === 'password' ? 'text' : 'password';
+        }
+
+        function notify(msg) {
+            views.toastText.textContent = msg;
+            views.toast.classList.remove('hidden');
+            // Accessibility: screen readers can hear the toast
+            views.toast.setAttribute('role', 'alert');
+            setTimeout(() => views.toast.classList.add('hidden'), 3000);
+        }
+
+        // Security: Strength Meter Logic
+        document.getElementById('signup-pass').addEventListener('input', (e) => {
+            const val = e.target.value;
+            let level = 0;
+            if (val.length >= 8) level++;
+            if (/[A-Z]/.test(val) && /[0-9]/.test(val)) level++;
+            if (/[^A-Za-z0-9]/.test(val)) level++;
+
+            views.strength.forEach((bar, i) => {
+                bar.className = `strength-bar flex-1 ${i < level ? (level === 3 ? 'bg-emerald-500' : 'bg-blue-600') : 'bg-white/10'}`;
+            });
+        });
+
+        // Validation: Indian Phone Number
+        const isIndianPhone = (n) => /^[6-9]\d{9}$/.test(n);
+
+        // Form Logic
+        document.getElementById('signup-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const phone = document.getElementById('signup-phone').value;
+            const pass = document.getElementById('signup-pass').value;
+
+            if (!isIndianPhone(phone)) return notify("Enter a valid 10-digit Indian number.");
+            if (pass.length < 8) return notify("Password must be at least 8 characters.");
+
+            if (localStorage.getItem(`sporz_at_${phone}`)) {
+                return notify("Athlete already registered.");
+            }
+
+            localStorage.setItem(`sporz_at_${phone}`, JSON.stringify({ phone, pass }));
+            notify("Registration successful! Proceed to Login.");
+            switchView('login');
+        });
+
+        document.getElementById('login-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const phone = document.getElementById('login-phone').value;
+            const pass = document.getElementById('login-pass').value;
+
+            const stored = localStorage.getItem(`sporz_at_${phone}`);
+            if (stored) {
+                const user = JSON.parse(stored);
+                if (user.pass === pass) {
+                    notify("Authentication successful! Redirecting...");
+                    
+                    // Delay for the user to see the success message
+                    setTimeout(() => {
+                        // Redirecting to index.html as requested
+                        window.location.href = 'index.html';
+                    }, 800);
+                    
+                } else {
+                    notify("Incorrect password.");
+                }
+            } else {
+                notify("Athlete record not found.");
+            }
+        });
+
+        // Ensure smooth keyboard experience on mobile
+        window.addEventListener('resize', () => {
+            if (document.activeElement.tagName === 'INPUT') {
+                document.activeElement.scrollIntoView({ behavior: 'smooth' });
+            }
+        });
+    </script>
+</body>
+</html>
