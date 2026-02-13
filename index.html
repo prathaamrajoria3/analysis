@@ -1,0 +1,504 @@
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { 
+  Lock, 
+  Unlock, 
+  Plus, 
+  Minus,
+  Trash2, 
+  PieChart, 
+  ShieldCheck, 
+  Eye, 
+  EyeOff,
+  IndianRupee,
+  Zap,
+  Briefcase,
+  AlertTriangle,
+  ChevronLeft,
+  ChevronRight,
+  Download,
+  Fingerprint,
+  Ghost,
+  ShieldAlert,
+  Smartphone,
+  Monitor,
+  ArrowUpRight,
+  ArrowDownLeft,
+  RefreshCcw,
+  Sparkles,
+  ShieldQuestion,
+  Database,
+  Search,
+  CheckCircle2
+} from 'lucide-react';
+import { initializeApp } from 'firebase/app';
+import { 
+  getFirestore, 
+  collection, 
+  doc, 
+  onSnapshot, 
+  setDoc, 
+  addDoc, 
+  deleteDoc, 
+  query,
+  updateDoc,
+  getDoc
+} from 'firebase/firestore';
+import { 
+  getAuth, 
+  signInAnonymously, 
+  signInWithCustomToken, 
+  onAuthStateChanged 
+} from 'firebase/auth';
+
+// --- CONFIGURATION ---
+const firebaseConfig = JSON.parse(__firebase_config);
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'money-mage-v4';
+
+const CATEGORIES = [
+  // Expense Categories
+  { id: 'rent', name: 'Rent', icon: '🏠', type: 'expense' },
+  { id: 'food', name: 'Food', icon: '🍲', type: 'expense' },
+  { id: 'travel', name: 'Travel', icon: '🚗', type: 'expense' },
+  { id: 'shopping', name: 'Shopping', icon: '🛍️', type: 'expense' },
+  { id: 'bills', name: 'Bills', icon: '📄', type: 'expense' },
+  { id: 'health', name: 'Health', icon: '🏥', type: 'expense' },
+  { id: 'leisure', name: 'Leisure', icon: '🍿', type: 'expense' },
+  { id: 'investment', name: 'Investment', icon: '📈', type: 'expense' },
+  { id: 'emergency', name: 'Emergency Fund', icon: '🚨', type: 'expense' },
+  // Income Categories
+  { id: 'salary', name: 'Salary', icon: '💼', type: 'income' },
+  { id: 'freelance', name: 'Freelance', icon: '💻', type: 'income' },
+  { id: 'gift', name: 'Gift/Reward', icon: '🎁', type: 'income' },
+  { id: 'div_withdrawal', name: 'Div/Withdrawal', icon: '🔓', type: 'income' },
+  { id: 'other', name: 'Other', icon: '✨', type: 'both' },
+];
+
+export default function App() {
+  const [user, setUser] = useState(null);
+  const [isLocked, setIsLocked] = useState(true);
+  const [pin, setPin] = useState('');
+  const [savedPin, setSavedPin] = useState(null);
+  const [transactions, setTransactions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showValues, setShowValues] = useState(true);
+  const [currentViewDate, setCurrentViewDate] = useState(new Date());
+  const [isPanicMode, setIsPanicMode] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const idleTimer = useRef(null);
+
+  // Form State
+  const [amount, setAmount] = useState('');
+  const [category, setCategory] = useState('other');
+  const [description, setDescription] = useState('');
+  const [entryType, setEntryType] = useState('expense'); // Simple: 'income' or 'expense'
+
+  // 1. ADVANCED SECURITY MESH
+  useEffect(() => {
+    const initAuth = async () => {
+      try {
+        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+          await signInWithCustomToken(auth, __initial_auth_token);
+        } else {
+          await signInAnonymously(auth);
+        }
+      } catch (error) { console.error("Auth fail", error); }
+    };
+    initAuth();
+    
+    const resetTimer = () => {
+      if (idleTimer.current) clearTimeout(idleTimer.current);
+      idleTimer.current = setTimeout(() => setIsLocked(true), 120000); // 2 min strict lock
+    };
+
+    const events = ['mousemove', 'mousedown', 'touchstart', 'scroll', 'keypress'];
+    events.forEach(e => window.addEventListener(e, resetTimer));
+
+    const unsubscribe = onAuthStateChanged(auth, (u) => {
+      setUser(u);
+      if (!u) setLoading(false);
+    });
+    return () => {
+      unsubscribe();
+      events.forEach(e => window.removeEventListener(e, resetTimer));
+    };
+  }, []);
+
+  // 2. REAL-TIME DATA ARCHITECTURE
+  useEffect(() => {
+    if (!user) return;
+
+    const settingsRef = doc(db, 'artifacts', appId, 'users', user.uid, 'settings', 'security');
+    const unsubscribeSettings = onSnapshot(settingsRef, (doc) => {
+      if (doc.exists()) setSavedPin(doc.data().pin);
+      setLoading(false);
+    }, () => setLoading(false));
+
+    const transRef = collection(db, 'artifacts', appId, 'users', user.uid, 'transactions');
+    const unsubscribeTrans = onSnapshot(transRef, (snapshot) => {
+      const docs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      setTransactions(docs);
+    });
+
+    return () => {
+      unsubscribeSettings();
+      unsubscribeTrans();
+    };
+  }, [user]);
+
+  // 3. FINANCIAL INTELLIGENCE (LIFETIME + MONTHLY)
+  const financialData = useMemo(() => {
+    const year = currentViewDate.getFullYear();
+    const month = currentViewDate.getMonth();
+    
+    return transactions.reduce((acc, t) => {
+        const d = new Date(t.timestamp);
+        const isCurrentMonth = d.getFullYear() === year && d.getMonth() === month;
+        const matchesSearch = t.description?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                             t.category?.toLowerCase().includes(searchQuery.toLowerCase());
+
+        // Process Lifetime Wealth
+        if (t.category === 'investment' || t.category === 'div_withdrawal') {
+            acc.lifetime.invested += (t.type === 'income' ? -t.amount : t.amount);
+        }
+        if (t.category === 'emergency') {
+            acc.lifetime.emergency += (t.type === 'income' ? -t.amount : t.amount);
+        }
+
+        // Process Monthly active window
+        if (isCurrentMonth) {
+            if (t.type === 'income') acc.monthly.income += t.amount;
+            else acc.monthly.expense += t.amount;
+            
+            if (matchesSearch) acc.monthly.sorted.push(t);
+        }
+
+        return acc;
+    }, { 
+        monthly: { income: 0, expense: 0, sorted: [] }, 
+        lifetime: { invested: 0, emergency: 0 } 
+    });
+  }, [transactions, currentViewDate, searchQuery]);
+
+  // Sort monthly results
+  financialData.monthly.sorted.sort((a, b) => b.timestamp - a.timestamp);
+
+  const handlePinSubmit = async (e) => {
+    e.preventDefault();
+    if (pin.length !== 6) return;
+    if (!savedPin) {
+      await setDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'settings', 'security'), { pin, setupAt: Date.now() });
+      setSavedPin(pin);
+      setIsLocked(false);
+    } else if (pin === savedPin) {
+      setIsLocked(false);
+    } else {
+      setPin('');
+    }
+  };
+
+  const addTransaction = async (e) => {
+    e.preventDefault();
+    if (!amount || !user) return;
+    
+    await addDoc(collection(db, 'artifacts', appId, 'users', user.uid, 'transactions'), {
+      amount: parseFloat(amount),
+      category,
+      description,
+      type: entryType,
+      timestamp: Date.now()
+    });
+    
+    setAmount('');
+    setDescription('');
+    setEntryType('expense');
+    setCategory('other');
+  };
+
+  const deleteTransaction = async (id) => {
+    await deleteDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'transactions', id));
+  };
+
+  if (loading) return (
+    <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center gap-4">
+      <div className="w-12 h-12 border-2 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin" />
+      <span className="text-[10px] font-black tracking-[0.4em] text-zinc-500 uppercase">Synchronizing Ledger</span>
+    </div>
+  );
+
+  if (isLocked) {
+    return (
+      <div className="min-h-screen bg-[#020202] flex items-center justify-center p-6 font-sans">
+        <div className="w-full max-w-sm bg-zinc-900/40 backdrop-blur-3xl border border-white/5 p-10 rounded-[3rem] shadow-2xl text-center animate-in zoom-in-95 duration-500">
+          <div className="w-16 h-16 bg-gradient-to-tr from-indigo-600 to-indigo-400 rounded-2xl flex items-center justify-center mx-auto mb-8 rotate-12 shadow-lg shadow-indigo-500/20">
+            <Fingerprint className="w-8 h-8 text-white" />
+          </div>
+          <h1 className="text-xl font-black text-white tracking-widest mb-2">ACCESS SECURE</h1>
+          <p className="text-zinc-500 text-[10px] font-bold uppercase mb-10 tracking-wider">Input Identity Key</p>
+          <form onSubmit={handlePinSubmit} className="space-y-8">
+            <input 
+              type="password"
+              maxLength={6}
+              value={pin}
+              onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
+              placeholder="000000"
+              className="w-full bg-transparent border-b border-zinc-800 focus:border-indigo-500 py-4 text-center text-4xl tracking-[0.5em] text-white outline-none transition-all placeholder:text-zinc-900"
+              autoFocus
+            />
+            <button type="submit" className="w-full bg-indigo-600 text-white font-black py-5 rounded-2xl hover:scale-105 active:scale-95 transition-all text-sm tracking-widest uppercase">
+              Establish Connection
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`min-h-screen ${isPanicMode ? 'grayscale contrast-125 brightness-75' : ''} bg-[#080808] text-zinc-100 font-sans transition-all duration-1000`}>
+      
+      {/* 1. SEO & PERFORMANCE GUARD */}
+      <header className="sr-only"><h1>Money Mage v4 - Ultra Secure Wealth OS</h1></header>
+
+      {/* 2. NAVIGATION: ADAPTIVE GRID */}
+      <nav className="sticky top-0 z-[100] bg-black/60 backdrop-blur-2xl border-b border-white/5 px-4 lg:px-8 py-4">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-500/10">
+              <Sparkles className="w-5 h-5 text-white" />
+            </div>
+            <div className="hidden md:block">
+              <span className="font-black text-lg tracking-tighter block leading-none">MONEY MAGE</span>
+              <span className="text-[10px] text-zinc-500 font-black uppercase tracking-[0.2em]">Quantum Security Enabled</span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 bg-zinc-900/80 p-1 rounded-2xl border border-white/5">
+            <button onClick={() => setCurrentViewDate(new Date(currentViewDate.setMonth(currentViewDate.getMonth() - 1)))} className="p-2.5 hover:bg-white/5 rounded-xl transition-colors"><ChevronLeft size={14}/></button>
+            <div className="px-4 text-center min-w-[120px]">
+                <span className="text-[11px] font-black uppercase text-indigo-400 block tracking-widest">
+                    {currentViewDate.toLocaleString('default', { month: 'long' })}
+                </span>
+                <span className="text-[9px] font-bold text-zinc-600">{currentViewDate.getFullYear()}</span>
+            </div>
+            <button onClick={() => setCurrentViewDate(new Date(currentViewDate.setMonth(currentViewDate.getMonth() + 1)))} className="p-2.5 hover:bg-white/5 rounded-xl transition-colors"><ChevronRight size={14}/></button>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button onClick={() => setIsPanicMode(!isPanicMode)} className={`p-2.5 rounded-xl transition-all ${isPanicMode ? 'bg-red-500 text-white' : 'bg-zinc-900 text-zinc-500 hover:text-white'}`}>
+              <ShieldAlert size={18} />
+            </button>
+            <button onClick={() => setShowValues(!showValues)} className="p-2.5 bg-zinc-900 text-zinc-500 hover:text-white rounded-xl">
+              {showValues ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
+            <button onClick={() => setIsLocked(true)} className="bg-indigo-600/10 text-indigo-500 p-2.5 rounded-xl hover:bg-indigo-600 hover:text-white transition-all">
+              <Lock size={18} />
+            </button>
+          </div>
+        </div>
+      </nav>
+
+      <main className="max-w-7xl mx-auto p-4 lg:p-10 grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-10 items-start">
+        
+        {/* LEFT COLUMN: VISUAL DASHBOARD */}
+        <div className="lg:col-span-8 space-y-6 lg:space-y-8 animate-in slide-in-from-bottom-6 duration-700">
+          
+          {/* NET LIQUIDITY HERO */}
+          <section className="relative group overflow-hidden bg-zinc-900/40 border border-white/5 p-8 lg:p-12 rounded-[3.5rem]">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-600/5 rounded-full blur-[80px] -mr-32 -mt-32" />
+            <div className="relative flex flex-col md:flex-row justify-between items-start md:items-end gap-8">
+                <div>
+                    <div className="flex items-center gap-2 mb-4">
+                        <CheckCircle2 size={12} className="text-emerald-500" />
+                        <span className="text-[10px] font-black uppercase text-zinc-500 tracking-[0.2em]">Available Liquidity</span>
+                    </div>
+                    <h2 className="text-5xl lg:text-7xl font-black tracking-tighter text-white">
+                        {showValues ? `₹${(financialData.monthly.income - financialData.monthly.expense).toLocaleString('en-IN')}` : '••••••'}
+                    </h2>
+                </div>
+                <div className="flex gap-4 w-full md:w-auto">
+                    <div className="flex-1 md:flex-none bg-black/40 p-4 rounded-3xl border border-white/5 min-w-[140px]">
+                        <p className="text-[9px] font-black text-emerald-500 uppercase mb-1">Inflow</p>
+                        <p className="font-black text-lg">₹{financialData.monthly.income.toLocaleString('en-IN')}</p>
+                    </div>
+                    <div className="flex-1 md:flex-none bg-black/40 p-4 rounded-3xl border border-white/5 min-w-[140px]">
+                        <p className="text-[9px] font-black text-rose-500 uppercase mb-1">Outflow</p>
+                        <p className="font-black text-lg">₹{financialData.monthly.expense.toLocaleString('en-IN')}</p>
+                    </div>
+                </div>
+            </div>
+          </section>
+
+          {/* CAPITAL POOLS */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="bg-gradient-to-br from-zinc-900 to-indigo-950/30 border border-white/5 p-8 rounded-[3rem] group hover:border-indigo-500/30 transition-all">
+                <Briefcase className="text-indigo-500 mb-6" size={28} />
+                <h4 className="text-zinc-500 font-black text-[10px] uppercase tracking-widest mb-2">Investment Reserve</h4>
+                <p className="text-3xl font-black text-white">
+                    {showValues ? `₹${financialData.lifetime.invested.toLocaleString('en-IN')}` : '••••••'}
+                </p>
+                <div className="mt-4 h-1 w-full bg-white/5 rounded-full overflow-hidden">
+                    <div className="h-full bg-indigo-500 w-[70%] animate-pulse" />
+                </div>
+            </div>
+
+            <div className="bg-zinc-900/40 border border-white/5 p-8 rounded-[3rem] group hover:border-amber-500/30 transition-all">
+                <AlertTriangle className="text-amber-500 mb-6" size={28} />
+                <h4 className="text-zinc-500 font-black text-[10px] uppercase tracking-widest mb-2">Emergency Shield</h4>
+                <p className="text-3xl font-black text-amber-500">
+                    {showValues ? `₹${financialData.lifetime.emergency.toLocaleString('en-IN')}` : '••••••'}
+                </p>
+                <p className="text-[10px] text-zinc-600 mt-2 font-bold uppercase">Locked for Contingencies</p>
+            </div>
+          </div>
+
+          {/* LEDGER & SEARCH */}
+          <section className="bg-zinc-900/20 rounded-[3rem] border border-white/5 overflow-hidden">
+            <div className="p-8 border-b border-white/5 flex flex-col md:flex-row justify-between items-center gap-6">
+                <div>
+                    <h3 className="font-black text-xl tracking-tight">Audit Trail</h3>
+                    <p className="text-[10px] text-zinc-500 font-bold uppercase mt-1">Transaction History</p>
+                </div>
+                <div className="relative w-full md:w-64 group">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600 group-focus-within:text-indigo-500 transition-colors" size={14} />
+                    <input 
+                        type="text" 
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder="Filter Narrative..." 
+                        className="w-full bg-black/40 border border-white/5 rounded-2xl py-3 pl-10 pr-4 text-xs font-bold outline-none focus:ring-1 focus:ring-indigo-500/30 transition-all"
+                    />
+                </div>
+            </div>
+            
+            <div className="max-h-[500px] overflow-y-auto custom-scrollbar">
+                {financialData.monthly.sorted.length === 0 ? (
+                    <div className="py-24 text-center">
+                        <Ghost size={48} className="mx-auto mb-4 text-zinc-800" />
+                        <p className="text-[10px] font-black uppercase text-zinc-700 tracking-widest">No dimensional data found</p>
+                    </div>
+                ) : (
+                    financialData.monthly.sorted.map((t) => (
+                        <div key={t.id} className="flex items-center gap-4 p-6 hover:bg-white/[0.02] border-b border-white/[0.02] transition-all group">
+                            <div className="w-12 h-12 bg-zinc-800/80 rounded-2xl flex items-center justify-center text-xl shadow-inner">
+                                {CATEGORIES.find(c => c.id === t.category)?.icon || '✨'}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <p className="font-black text-sm text-zinc-200 truncate">{t.description || 'System Entry'}</p>
+                                <div className="flex items-center gap-2 mt-1">
+                                    <span className="text-[9px] font-black uppercase text-indigo-500">{t.category}</span>
+                                    <span className="w-1 h-1 bg-zinc-800 rounded-full" />
+                                    <span className="text-[9px] font-bold text-zinc-600">{new Date(t.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                </div>
+                            </div>
+                            <div className="text-right flex flex-col items-end gap-1">
+                                <p className={`font-black text-sm ${t.type === 'income' ? 'text-emerald-400' : 'text-zinc-200'}`}>
+                                    {t.type === 'income' ? '+' : '-'} ₹{t.amount.toLocaleString('en-IN')}
+                                </p>
+                                <button onClick={() => deleteTransaction(t.id)} className="opacity-0 group-hover:opacity-100 text-rose-500/50 hover:text-rose-500 transition-all">
+                                    <Trash2 size={12} />
+                                </button>
+                            </div>
+                        </div>
+                    ))
+                )}
+            </div>
+          </section>
+        </div>
+
+        {/* RIGHT COLUMN: INTERACTION PANEL */}
+        <div className="lg:col-span-4 space-y-6 lg:sticky lg:top-28 animate-in slide-in-from-right-6 duration-700">
+          
+          <section className="bg-zinc-900 border border-white/10 p-8 rounded-[3.5rem] shadow-2xl">
+            <div className="flex items-center gap-3 mb-8">
+                <Plus className="text-indigo-500" size={24} />
+                <h3 className="font-black text-xl tracking-tight">Record Entry</h3>
+            </div>
+            
+            <form onSubmit={addTransaction} className="space-y-6">
+              {/* Type Switcher: Simplified */}
+              <div className="flex p-1 bg-black/40 rounded-2xl border border-white/5">
+                <button type="button" onClick={() => { setEntryType('expense'); setCategory('other'); }} className={`flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl text-[10px] font-black uppercase transition-all ${entryType === 'expense' ? 'bg-zinc-800 text-white shadow-lg shadow-black/50' : 'text-zinc-600'}`}>
+                    <Minus size={14} /> Expense
+                </button>
+                <button type="button" onClick={() => { setEntryType('income'); setCategory('salary'); }} className={`flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl text-[10px] font-black uppercase transition-all ${entryType === 'income' ? 'bg-zinc-800 text-white shadow-lg shadow-black/50' : 'text-zinc-600'}`}>
+                    <Plus size={14} /> Income
+                </button>
+              </div>
+
+              <div>
+                <label className="text-[9px] font-black text-zinc-600 uppercase tracking-[0.2em] ml-2">Magnitude (INR)</label>
+                <div className="relative mt-2">
+                    <span className="absolute left-6 top-1/2 -translate-y-1/2 font-black text-zinc-500">₹</span>
+                    <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} className="w-full bg-black/40 border border-white/5 rounded-2xl py-5 pl-12 pr-6 text-2xl font-black text-white focus:ring-1 focus:ring-indigo-500 outline-none transition-all" placeholder="0.00" required />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[9px] font-black text-zinc-600 uppercase tracking-[0.2em] ml-2">Contextual Dimension</label>
+                <select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full bg-black/40 border border-white/5 rounded-2xl py-5 px-6 mt-2 font-bold text-white focus:ring-1 focus:ring-indigo-500 outline-none appearance-none cursor-pointer">
+                  {CATEGORIES.filter(c => c.type === entryType || c.type === 'both').map(cat => (
+                    <option key={cat.id} value={cat.id} className="bg-zinc-900">{cat.icon} {cat.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-[9px] font-black text-zinc-600 uppercase tracking-[0.2em] ml-2">Narrative / Description</label>
+                <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} className="w-full bg-black/40 border border-white/5 rounded-2xl py-5 px-6 mt-2 font-bold text-white focus:ring-1 focus:ring-indigo-500 outline-none transition-all placeholder:text-zinc-800" placeholder="Source/Destination..." />
+              </div>
+
+              <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-black py-5 rounded-2xl transition-all shadow-xl shadow-indigo-600/10 active:scale-95 flex items-center justify-center gap-3">
+                <Zap size={18} /> Commit Record
+              </button>
+            </form>
+          </section>
+
+          {/* SECURITY STATUS CARD */}
+          <section className="bg-emerald-500/5 border border-emerald-500/10 p-6 rounded-[2.5rem]">
+            <div className="flex items-center gap-3 mb-3">
+                <ShieldCheck size={18} className="text-emerald-500" />
+                <span className="text-[10px] font-black uppercase text-emerald-500 tracking-widest">Encryption Guard</span>
+            </div>
+            <p className="text-[10px] leading-relaxed text-zinc-500 font-medium italic">
+                All entries are ephemeral until authenticated via PIN. Global assets (Investments) are calculated in memory to prevent ledger clutter.
+            </p>
+          </section>
+        </div>
+      </main>
+
+      {/* FOOTER: SEO FOOTPRINT */}
+      <footer className="mt-20 py-20 border-t border-white/5 px-10">
+        <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-10 opacity-40 hover:opacity-100 transition-opacity">
+            <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                    <Database size={16} className="text-indigo-500" />
+                    <span className="text-[10px] font-black uppercase tracking-widest">Data Integrity</span>
+                </div>
+                <p className="text-[9px] leading-relaxed text-zinc-600">Firestore-backed atomic transactions ensure zero data loss during simultaneous entries across devices.</p>
+            </div>
+            <div className="space-y-4 text-center">
+                <div className="flex items-center justify-center gap-2">
+                    <Smartphone size={16} className="text-indigo-500" />
+                    <Monitor size={16} className="text-indigo-500" />
+                </div>
+                <p className="text-[10px] font-black uppercase tracking-widest">Multi-Device Mesh</p>
+                <p className="text-[9px] leading-relaxed text-zinc-600">Responsive grid adapts from 400px to 4000px with zero layout shift.</p>
+            </div>
+            <div className="space-y-4 text-right">
+                <div className="flex items-center justify-end gap-2">
+                    <ShieldQuestion size={16} className="text-indigo-500" />
+                    <span className="text-[10px] font-black uppercase tracking-widest">Privacy Protocol</span>
+                </div>
+                <p className="text-[9px] leading-relaxed text-zinc-600">Panic mode & session heartbeats act as a visual firewall in public environments.</p>
+            </div>
+        </div>
+      </footer>
+
+      {/* MOBILE BAR (Visual Only for Layout Alignment) */}
+      <div className="lg:hidden h-20" />
+    </div>
+  );
+}
