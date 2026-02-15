@@ -1,496 +1,595 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { 
-  TrendingUp, TrendingDown, Wallet, ShieldCheck, 
-  Plus, Trash2, ArrowUpCircle, ArrowDownCircle, 
-  EyeOff, Zap, Target, History, Fingerprint, 
-  ChevronRight, ArrowLeftRight, Clock, Shield, 
-  Lock, PieChart, Activity, Cpu, ShieldAlert,
-  ArrowRight, Landmark, CreditCard, Sparkles,
-  X, Calendar, Eye, RefreshCcw
-} from 'lucide-react';
-
-/**
- * MONEY MAGE - V13 (ULTIMATE EDITION)
- * - Fixed: Core loading & state persistence
- * - Feature: Auto-Lock on tab hide/switch
- * - Feature: Manual Back-dating for entries
- * - UI: Hyper-Responsive for PC & Mobile
- */
-
-const SPEND_CATEGORIES = [
-  { id: 'Food', icon: '🍕' },
-  { id: 'Rent', icon: '🏠' },
-  { id: 'Travel', icon: '🚗' },
-  { id: 'Shopping', icon: '🛍️' },
-  { id: 'Health', icon: '🏥' },
-  { id: 'Bills', icon: '⚡' },
-  { id: 'Fun', icon: '🎉' },
-  { id: 'Other', icon: '✨' }
-];
-
-const INCOME_CATEGORIES = [
-  { id: 'Salary', icon: '💰' },
-  { id: 'Freelance', icon: '👨‍💻' },
-  { id: 'Gift', icon: '🎁' },
-  { id: 'Bonus', icon: '📈' },
-  { id: 'Refund', icon: '🔙' }
-];
-
-const AUTO_LOCK_MS = 180000; // 3 Minutes
-
-const App = () => {
-  // --- SESSION & AUTH ---
-  const [isLocked, setIsLocked] = useState(true);
-  const [hasAccount, setHasAccount] = useState(() => !!localStorage.getItem('mage_v13_pin'));
-  const [pin, setPin] = useState('');
-  const [confirmPin, setConfirmPin] = useState('');
-  const [error, setError] = useState('');
-  const [isWiping, setIsWiping] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(AUTO_LOCK_MS / 1000);
-
-  // --- VAULT DATA ---
-  const [user, setUser] = useState(null);
-  const [vault, setVault] = useState({
-    transactions: [],
-    invested: 0,
-    emergency: 0
-  });
-
-  // --- UI STATE ---
-  const [activeTab, setActiveTab] = useState('Home');
-  const [activeModal, setActiveModal] = useState(null);
-  const [privacy, setPrivacy] = useState(false);
-  const timerRef = useRef(null);
-  const inputRef = useRef(null);
-
-  // --- SECURITY: AUTO LOCK ---
-  const lockVault = useCallback(() => {
-    if (isLocked) return;
-    setIsWiping(true);
-    setTimeout(() => {
-      setIsLocked(true);
-      setPin('');
-      setConfirmPin('');
-      setIsWiping(false);
-    }, 500);
-  }, [isLocked]);
-
-  // TRIGGER LOCK WHEN APP IS MINIMIZED OR TAB SWITCHED
-  useEffect(() => {
-    const handleVisibility = () => {
-      if (document.hidden && !isLocked) lockVault();
-    };
-    document.addEventListener("visibilitychange", handleVisibility);
-    return () => document.removeEventListener("visibilitychange", handleVisibility);
-  }, [isLocked, lockVault]);
-
-  const resetTimer = useCallback(() => {
-    if (timerRef.current) clearInterval(timerRef.current);
-    if (!isLocked) {
-      setTimeLeft(AUTO_LOCK_MS / 1000);
-      timerRef.current = setInterval(() => {
-        setTimeLeft(t => {
-          if (t <= 1) { lockVault(); return 0; }
-          return t - 1;
-        });
-      }, 1000);
-    }
-  }, [isLocked, lockVault]);
-
-  useEffect(() => {
-    const poke = () => resetTimer();
-    const events = ['mousedown', 'keydown', 'touchstart'];
-    events.forEach(e => document.addEventListener(e, poke));
-    resetTimer();
-    return () => {
-      events.forEach(e => document.removeEventListener(e, poke));
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, [resetTimer, isLocked]);
-
-  // --- AUTHENTICATION ---
-  const handleAuth = () => {
-    setError('');
-    const storedPin = localStorage.getItem('mage_v13_pin');
-
-    if (!hasAccount) {
-      if (pin.length === 6 && confirmPin.length === 6) {
-        if (pin !== confirmPin) {
-          setError("Codes don't match");
-          setPin(''); setConfirmPin('');
-          return;
-        }
-        localStorage.setItem('mage_v13_pin', btoa(pin));
-        setHasAccount(true);
-        setPin(''); setConfirmPin('');
-      }
-      return;
-    }
-
-    if (btoa(pin) === storedPin) {
-      const uid = btoa(pin).substring(0, 10);
-      setUser(uid);
-      const savedData = localStorage.getItem(`mage_v13_data_${uid}`);
-      if (savedData) setVault(JSON.parse(savedData));
-      
-      setIsWiping(true);
-      setTimeout(() => {
-        setIsLocked(false);
-        setIsWiping(false);
-        setPin('');
-      }, 600);
-    } else {
-      setError("Incorrect Code");
-      setPin('');
-    }
-  };
-
-  useEffect(() => {
-    if (pin.length === 6) {
-      if (!hasAccount && confirmPin.length < 6) return;
-      handleAuth();
-    }
-  }, [pin, confirmPin]);
-
-  // --- CALCULATIONS ---
-  const totals = useMemo(() => {
-    const cash = vault.transactions.reduce((acc, t) => {
-      // Inflow: Income + Selling Assets + Withdrawing Savings
-      if (['income', 'invest_minus', 'save_minus'].includes(t.type)) return acc + t.amount;
-      // Outflow: Expenses + Buying Assets + Depositing Savings
-      return acc - t.amount;
-    }, 0);
-    return { cash };
-  }, [vault]);
-
-  const formatMoney = (val) => {
-    if (privacy) return '••••';
-    return new Intl.NumberFormat('en-IN', { 
-      style: 'currency', 
-      currency: 'INR', 
-      maximumFractionDigits: 0 
-    }).format(val);
-  };
-
-  // --- ACTION HANDLER ---
-  const addTransaction = (type, amount, cat, note, date) => {
-    const val = parseFloat(amount);
-    if (!val || isNaN(val)) return;
-
-    const entryDate = date ? new Date(date).toLocaleDateString() : new Date().toLocaleDateString();
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     
-    const entry = {
-      id: Date.now(),
-      amount: val,
-      type: type.toLowerCase(),
-      category: cat || 'Other',
-      note: note || '',
-      date: entryDate
-    };
+    <!-- Advanced SEO -->
+    <title>Money Mage | Simple & Private Money Tracker</title>
+    <meta name="description" content="A ultra-secure, private money manager for your phone. Track savings, investments, and emergency funds with zero-knowledge encryption.">
+    <meta name="theme-color" content="#030303">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary: #818cf8;
+            --emerald: #10b981;
+            --amber: #f59e0b;
+            --rose: #f43f5e;
+            --bg: #030303;
+            --glass: rgba(18, 18, 24, 0.8);
+        }
 
-    setVault(prev => {
-      const newVault = { ...prev, transactions: [entry, ...prev.transactions] };
-      
-      if (type === 'invest_plus') newVault.invested += val;
-      if (type === 'invest_minus') newVault.invested -= val;
-      if (type === 'save_plus') newVault.emergency += val;
-      if (type === 'save_minus') newVault.emergency -= val;
+        body { 
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+            background-color: var(--bg); 
+            color: #f4f4f5; 
+            overflow-x: hidden;
+            overscroll-behavior-y: contain; /* Prevents pull-to-refresh on mobile */
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
 
-      if (user) localStorage.setItem(`mage_v13_data_${user}`, JSON.stringify(newVault));
-      return newVault;
-    });
-    setActiveModal(null);
-  };
+        .mono { font-family: 'JetBrains Mono', monospace; }
 
-  // --- SCREENS ---
-  if (isLocked || isWiping) return (
-    <div className={`min-h-screen bg-[#020202] flex items-center justify-center p-6 transition-all duration-700 ${isWiping ? 'opacity-0 scale-95 blur-2xl' : 'opacity-100'}`}>
-      <div className="w-full max-w-sm space-y-12">
-        <div className="text-center space-y-4">
-          <div className="w-20 h-20 bg-indigo-600 rounded-3xl mx-auto flex items-center justify-center shadow-[0_0_50px_rgba(79,70,229,0.4)] relative overflow-hidden group">
-            <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform" />
-            <ShieldCheck className="text-white w-10 h-10 relative z-10 animate-pulse" />
-          </div>
-          <h1 className="text-3xl font-black text-white tracking-tighter uppercase italic">Money Mage</h1>
-          <div className="inline-block px-4 py-1 rounded-full bg-zinc-900 border border-white/5">
-             <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">End-to-End Encrypted</span>
-          </div>
-        </div>
+        .glass-card {
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 10px 30px -10px rgba(0,0,0,0.5);
+        }
 
-        <div className="space-y-8">
-          <div className="flex justify-center gap-3">
-            {[...Array(6)].map((_, i) => (
-              <div key={i} className={`w-11 h-14 rounded-2xl border-2 flex items-center justify-center text-xl font-bold transition-all duration-300 
-                ${(!hasAccount && pin.length === 6 ? confirmPin.length : pin.length) > i 
-                  ? 'bg-indigo-600 border-indigo-400 text-white scale-105 shadow-lg shadow-indigo-500/20' 
-                  : 'bg-zinc-900 border-zinc-800 text-zinc-700'}`}>
-                {(!hasAccount && pin.length === 6 ? confirmPin.length : pin.length) > i ? '•' : ''}
-              </div>
-            ))}
-          </div>
-          
-          <div className="text-center">
-            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-400">
-              {!hasAccount 
-                ? (pin.length < 6 ? "Create your master pin" : "Confirm master pin") 
-                : "Enter pin to unlock vault"}
-            </p>
-          </div>
+        /* Privacy Mode - Precision Blur */
+        .ghost-active .blur-amount {
+            filter: blur(10px);
+            opacity: 0.5;
+            transition: filter 0.3s ease;
+        }
 
-          <input 
-            ref={inputRef}
-            type="tel"
-            pattern="[0-9]*"
-            inputMode="numeric"
-            maxLength={6}
-            className="absolute opacity-0 pointer-events-none"
-            value={!hasAccount && pin.length === 6 ? confirmPin : pin}
-            onChange={(e) => {
-              const v = e.target.value.replace(/\D/g, '').slice(0,6);
-              if (!hasAccount && pin.length === 6) setConfirmPin(v);
-              else setPin(v);
-            }}
-            autoFocus
-          />
-          {error && <p className="text-rose-500 text-[10px] font-black uppercase text-center animate-bounce">{error}</p>}
-        </div>
-      </div>
-    </div>
-  );
+        /* Mobile Smoothness */
+        .smooth-scroll {
+            -webkit-overflow-scrolling: touch;
+            will-change: transform;
+        }
 
-  return (
-    <div className="min-h-screen bg-[#050505] text-zinc-400 font-sans pb-32">
-      
-      {/* NAVBAR */}
-      <nav className="sticky top-0 z-[100] bg-black/60 backdrop-blur-3xl border-b border-white/[0.03] px-6 py-4 flex justify-between items-center">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
-            <Zap size={20} className="text-white fill-current"/>
-          </div>
-          <div className="hidden sm:block">
-            <p className="text-sm font-black text-white uppercase tracking-tighter leading-none">Money Mage</p>
-            <p className="text-[9px] font-bold text-emerald-500 uppercase mt-1 tracking-widest flex items-center gap-1">
-              <span className="w-1 h-1 bg-emerald-500 rounded-full animate-ping" /> Live Session
-            </p>
-          </div>
-        </div>
+        @keyframes pulse-border {
+            0% { border-color: rgba(129, 140, 248, 0.2); }
+            50% { border-color: rgba(129, 140, 248, 0.6); }
+            100% { border-color: rgba(129, 140, 248, 0.2); }
+        }
+        .active-ring { animation: pulse-border 2s infinite; }
 
-        <div className="flex items-center gap-2">
-          <div className="bg-zinc-900/50 px-3 py-2 rounded-xl border border-white/5 flex items-center gap-2">
-             <Clock size={12} className="text-indigo-400" />
-             <span className="text-[10px] font-mono font-bold text-white">{timeLeft}s</span>
-          </div>
-          <button onClick={() => setPrivacy(!privacy)} className={`p-2.5 rounded-xl transition-all ${privacy ? 'bg-indigo-600 text-white' : 'bg-zinc-900 text-zinc-500'}`}>
-            {privacy ? <EyeOff size={16}/> : <Eye size={16}/>}
-          </button>
-          <button onClick={lockVault} className="p-2.5 bg-zinc-900 hover:bg-rose-600 text-zinc-500 hover:text-white rounded-xl transition-all">
-            <Lock size={16}/>
-          </button>
-        </div>
-      </nav>
-
-      <main className="max-w-6xl mx-auto p-6 md:p-12 space-y-12">
+        .hide-scroll::-webkit-scrollbar { display: none; }
         
-        {/* BIG NUMBERS */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-10 items-end">
-           <div className="space-y-4">
-              <p className="text-xs font-black text-indigo-500 uppercase tracking-[0.4em] flex items-center gap-2">
-                 <Sparkles size={14}/> Wealth Overview
-              </p>
-              <h2 className="text-6xl md:text-8xl font-black text-white tracking-tighter uppercase leading-[0.85]">
-                Stay<br/><span className="text-indigo-600 underline decoration-indigo-500/30">Ahead.</span>
-              </h2>
-           </div>
+        /* Mobile Security: prevent text selection and highlight */
+        * { -webkit-touch-callout: none; }
+    </style>
+</head>
+<body oncontextmenu="return false">
 
-           <div className="bg-gradient-to-br from-zinc-900/40 to-black border border-white/5 rounded-[3rem] p-10 flex items-center justify-between group hover:border-indigo-500/30 transition-all shadow-2xl">
-              <div className="space-y-2">
-                 <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Available Cash</p>
-                 <h3 className="text-5xl font-mono font-black text-white tracking-tight">{formatMoney(totals.cash)}</h3>
-              </div>
-              <div className="w-16 h-16 bg-indigo-600/10 rounded-3xl flex items-center justify-center text-indigo-500 group-hover:bg-indigo-600 group-hover:text-white transition-all">
-                 <Wallet size={32} />
-              </div>
-           </div>
+    <canvas id="nebula-canvas" class="fixed inset-0 z-[-1]"></canvas>
+    
+    <!-- 1. SECURITY LOCK SCREEN -->
+    <div id="auth-screen" class="fixed inset-0 z-[9999] bg-black flex flex-col items-center justify-center p-8 transition-all duration-700">
+        <div class="w-full max-w-xs text-center space-y-8">
+            <div class="relative inline-block group">
+                <div class="absolute inset-0 bg-indigo-500/30 blur-[40px] rounded-full group-hover:bg-indigo-500/50 transition-all"></div>
+                <div class="relative w-20 h-20 glass-card rounded-3xl flex items-center justify-center border-indigo-500/40">
+                    <i data-lucide="fingerprint" class="text-indigo-400 w-10 h-10 animate-pulse"></i>
+                </div>
+            </div>
+            
+            <div class="space-y-1">
+                <h1 class="text-2xl font-extrabold text-white tracking-tight italic">DIGITAL <span class="text-indigo-400">VAULT</span></h1>
+                <p id="lock-hint" class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Biometric Identity Required</p>
+            </div>
+
+            <div id="pin-display" class="flex justify-center gap-3">
+                <div class="w-3 h-3 rounded-full border border-zinc-700 transition-all duration-200"></div>
+                <div class="w-3 h-3 rounded-full border border-zinc-700 transition-all duration-200"></div>
+                <div class="w-3 h-3 rounded-full border border-zinc-700 transition-all duration-200"></div>
+                <div class="w-3 h-3 rounded-full border border-zinc-700 transition-all duration-200"></div>
+                <div class="w-3 h-3 rounded-full border border-zinc-700 transition-all duration-200"></div>
+                <div class="w-3 h-3 rounded-full border border-zinc-700 transition-all duration-200"></div>
+            </div>
+
+            <div id="secure-keypad" class="grid grid-cols-3 gap-4"></div>
+            <p id="auth-feedback" class="hidden text-rose-500 text-[10px] font-black uppercase tracking-tighter animate-shake">Incorrect Key</p>
         </div>
+    </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-           
-           {/* SIDEBAR STATS */}
-           <div className="space-y-6">
-              <StatBlock title="Investments" amount={formatMoney(vault.invested)} icon={TrendingUp} color="text-purple-400" bg="bg-purple-500/10" />
-              <StatBlock title="Safe Savings" amount={formatMoney(vault.emergency)} icon={ShieldCheck} color="text-emerald-400" bg="bg-emerald-500/10" />
-              
-              <div className="bg-zinc-900/20 border border-white/5 rounded-[2.5rem] p-8 space-y-4">
-                 <p className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.2em]">Quick Actions</p>
-                 <ActionItem label="Log Income" icon={ArrowUpCircle} color="text-emerald-500" onClick={() => setActiveModal('Income')} />
-                 <ActionItem label="Log Expense" icon={ArrowDownCircle} color="text-rose-500" onClick={() => setActiveModal('Expense')} />
-                 <ActionItem label="Move Money" icon={ArrowLeftRight} color="text-indigo-500" onClick={() => setActiveModal('Transfer')} />
-              </div>
-           </div>
-
-           {/* LOGS */}
-           <div className="md:col-span-2">
-              <div className="bg-zinc-900/10 border border-white/[0.04] rounded-[3.5rem] flex flex-col min-h-[550px] overflow-hidden shadow-2xl">
-                 <div className="p-10 border-b border-white/[0.03] bg-white/[0.01] flex justify-between items-center">
-                    <div className="flex items-center gap-3">
-                       <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
-                       <h4 className="text-xs font-black text-white uppercase tracking-[0.3em]">Vault Activity</h4>
+    <!-- 2. MAIN APP INTERFACE -->
+    <div id="main-app" class="hidden opacity-0 translate-y-4 transition-all duration-500">
+        <header class="sticky top-0 z-[100] glass-card px-6 py-4 flex justify-between items-center border-b border-white/5 rounded-b-3xl">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 bg-indigo-500 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/30">
+                    <i data-lucide="shield" class="text-white w-5 h-5"></i>
+                </div>
+                <div>
+                    <h2 class="text-sm font-black text-white uppercase tracking-tight">Vault v4.0</h2>
+                    <div class="flex items-center gap-1.5">
+                        <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
+                        <p class="text-[8px] text-emerald-500 font-bold uppercase tracking-widest">Secure Link</p>
                     </div>
-                    <History size={16} className="text-zinc-700" />
-                 </div>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <button onclick="toggleGhostMode()" class="p-2.5 glass-card rounded-xl text-zinc-400">
+                    <i data-lucide="eye" id="ghost-icon" class="w-4 h-4"></i>
+                </button>
+                <button onclick="panicLock()" class="p-2.5 bg-rose-500/10 text-rose-500 rounded-xl border border-rose-500/20">
+                    <i data-lucide="power" class="w-4 h-4"></i>
+                </button>
+            </div>
+        </header>
 
-                 <div className="flex-1 overflow-y-auto p-6 space-y-3">
-                    {vault.transactions.length === 0 ? (
-                       <div className="h-full flex flex-col items-center justify-center opacity-20 space-y-6">
-                          <Activity size={60} strokeWidth={1} />
-                          <p className="text-[10px] font-black uppercase tracking-widest">No Records Found</p>
-                       </div>
-                    ) : (
-                       vault.transactions.map((tx, idx) => {
-                          const icon = [...SPEND_CATEGORIES, ...INCOME_CATEGORIES].find(c => c.id === tx.category)?.icon || '💸';
-                          return (
-                            <div key={tx.id} className="flex items-center justify-between p-5 bg-white/[0.02] border border-white/[0.03] rounded-3xl group hover:bg-white/[0.05] transition-all">
-                               <div className="flex items-center gap-5">
-                                  <div className="w-12 h-12 rounded-2xl bg-black flex items-center justify-center text-2xl shadow-inner group-hover:scale-110 transition-transform">{icon}</div>
-                                  <div>
-                                     <p className="text-sm font-black text-white uppercase leading-none">{tx.category}</p>
-                                     <p className="text-[9px] font-bold text-zinc-600 uppercase mt-1.5 tracking-wider">{tx.date}</p>
-                                  </div>
-                               </div>
-                               <div className="flex items-center gap-5">
-                                  <span className={`text-lg font-mono font-black ${['income', 'invest_minus', 'save_minus'].includes(tx.type) ? 'text-emerald-500' : 'text-rose-500'}`}>
-                                     {['income', 'invest_minus', 'save_minus'].includes(tx.type) ? '+' : '-'}{formatMoney(tx.amount)}
-                                  </span>
-                                  <button onClick={() => setVault(v => ({...v, transactions: v.transactions.filter(t => t.id !== tx.id)}))} className="opacity-0 group-hover:opacity-100 p-2 text-zinc-800 hover:text-rose-500 transition-all">
-                                     <Trash2 size={16}/>
-                                  </button>
-                               </div>
+        <main class="max-w-4xl mx-auto p-5 space-y-6 pb-32">
+            <!-- PRIMARY BALANCE CARD -->
+            <section class="glass-card p-8 rounded-[2.5rem] relative overflow-hidden active-ring">
+                <div class="relative z-10 space-y-6">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] mb-1">Bank Balance</p>
+                            <h2 id="display-total" class="text-5xl font-black text-white tracking-tighter mono blur-amount">₹0</h2>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] mb-1">Total Worth</p>
+                            <p id="display-worth" class="text-xl font-bold text-indigo-400 mono blur-amount">₹0</p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4 pt-6 border-t border-white/5">
+                        <div class="p-4 bg-white/5 rounded-2xl">
+                            <div class="flex items-center gap-2 mb-1">
+                                <i data-lucide="trending-up" class="w-3 h-3 text-indigo-400"></i>
+                                <p class="text-[9px] font-bold text-zinc-400 uppercase">Investments</p>
                             </div>
-                          )
-                       })
-                    )}
-                 </div>
-              </div>
-           </div>
+                            <p id="display-invest" class="text-lg font-black text-white mono blur-amount">₹0</p>
+                        </div>
+                        <div class="p-4 bg-white/5 rounded-2xl">
+                            <div class="flex items-center gap-2 mb-1">
+                                <i data-lucide="life-buoy" class="w-3 h-3 text-amber-400"></i>
+                                <p class="text-[9px] font-bold text-zinc-400 uppercase">Emergency</p>
+                            </div>
+                            <p id="display-emergency" class="text-lg font-black text-white mono blur-amount">₹0</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- MOBILE ACTION TILES -->
+            <nav class="grid grid-cols-2 gap-3">
+                <button onclick="triggerEntry('Income')" class="p-5 glass-card rounded-[2rem] flex flex-col items-center gap-3 active:scale-95 transition-all">
+                    <div class="w-12 h-12 bg-emerald-500/10 text-emerald-500 rounded-2xl flex items-center justify-center"><i data-lucide="plus" class="w-6 h-6"></i></div>
+                    <span class="text-[10px] font-bold uppercase tracking-widest text-zinc-300">Add Money</span>
+                </button>
+                <button onclick="triggerEntry('Expense')" class="p-5 glass-card rounded-[2rem] flex flex-col items-center gap-3 active:scale-95 transition-all">
+                    <div class="w-12 h-12 bg-rose-500/10 text-rose-500 rounded-2xl flex items-center justify-center"><i data-lucide="minus" class="w-6 h-6"></i></div>
+                    <span class="text-[10px] font-bold uppercase tracking-widest text-zinc-300">Spent</span>
+                </button>
+                <button onclick="triggerEntry('Investment')" class="p-5 glass-card rounded-[2rem] flex flex-col items-center gap-3 active:scale-95 transition-all">
+                    <div class="w-12 h-12 bg-indigo-500/10 text-indigo-400 rounded-2xl flex items-center justify-center"><i data-lucide="bar-chart-3" class="w-6 h-6"></i></div>
+                    <span class="text-[10px] font-bold uppercase tracking-widest text-zinc-300">Invest</span>
+                </button>
+                <button onclick="triggerEntry('Emergency')" class="p-5 glass-card rounded-[2rem] flex flex-col items-center gap-3 active:scale-95 transition-all">
+                    <div class="w-12 h-12 bg-amber-500/10 text-amber-500 rounded-2xl flex items-center justify-center"><i data-lucide="shield-alert" class="w-6 h-6"></i></div>
+                    <span class="text-[10px] font-bold uppercase tracking-widest text-zinc-300">Safety Net</span>
+                </button>
+            </nav>
+
+            <!-- HISTORY LEDGER -->
+            <section class="glass-card rounded-[2.5rem] overflow-hidden">
+                <div class="p-6 border-b border-white/5 flex justify-between items-center">
+                    <h3 class="text-[10px] font-black text-white uppercase tracking-[0.3em]">Ledger Logs</h3>
+                    <select onchange="setFilter(this.value)" class="bg-white/5 text-[9px] font-bold uppercase p-2 rounded-lg outline-none border-none">
+                        <option value="day">Today</option>
+                        <option value="week">Weekly</option>
+                        <option value="month">Monthly</option>
+                        <option value="all">Full History</option>
+                    </select>
+                </div>
+                <div id="ledger-list" class="max-h-[350px] overflow-y-auto smooth-scroll p-4 space-y-3 hide-scroll">
+                    <!-- Dynamic entries -->
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- TRANSACTION DRAWER -->
+    <div id="input-drawer" class="fixed inset-0 z-[1000] hidden items-end justify-center">
+        <div class="absolute inset-0 bg-black/90 backdrop-blur-sm" onclick="toggleDrawer(false)"></div>
+        <div id="drawer-panel" class="relative w-full max-w-xl glass-card rounded-t-[3rem] p-8 border-t border-white/10 translate-y-full transition-transform duration-500">
+            <div class="w-12 h-1.5 bg-zinc-800 rounded-full mx-auto mb-8"></div>
+            
+            <form id="vault-form" class="space-y-6">
+                <div class="text-center mb-6">
+                    <h3 id="drawer-header" class="text-2xl font-black text-white uppercase italic">New Entry</h3>
+                    <p class="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mt-1">Authorized Transaction</p>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="space-y-2">
+                        <label class="text-[9px] font-black text-zinc-500 uppercase">Amount</label>
+                        <input id="val-amt" type="number" step="0.01" required placeholder="0.00" class="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-xl mono text-white outline-none focus:border-indigo-500">
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-[9px] font-black text-zinc-500 uppercase">Date</label>
+                        <input id="val-date" type="date" required class="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-xs text-white outline-none">
+                    </div>
+                </div>
+
+                <div id="move-type-box" class="hidden items-center justify-between p-4 bg-indigo-500/10 rounded-2xl border border-indigo-500/20">
+                    <div class="flex items-center gap-3">
+                        <i data-lucide="help-circle" class="w-4 h-4 text-indigo-400"></i>
+                        <span id="move-label" class="text-[10px] font-black uppercase text-indigo-300">Taking money back?</span>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="val-liquidate" class="sr-only peer">
+                        <div class="w-11 h-6 bg-zinc-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                    </label>
+                </div>
+                
+                <div class="space-y-2">
+                    <label class="text-[9px] font-black text-zinc-500 uppercase">Category</label>
+                    <div id="category-selector" class="grid grid-cols-3 gap-2 max-h-40 overflow-y-auto pr-2 hide-scroll"></div>
+                </div>
+
+                <button type="submit" class="w-full py-5 bg-indigo-600 text-white rounded-2xl font-black uppercase tracking-widest active:scale-95 transition-all shadow-xl shadow-indigo-600/20">Submit to Vault</button>
+            </form>
         </div>
-      </main>
+    </div>
 
-      {/* MODAL SYSTEM */}
-      {activeModal && (
-        <div className="fixed inset-0 z-[500] flex items-end sm:items-center justify-center p-0 sm:p-6">
-           <div className="absolute inset-0 bg-black/90 backdrop-blur-xl animate-in fade-in" onClick={() => setActiveModal(null)} />
-           <div className="relative w-full max-w-xl bg-[#080808] border-t sm:border border-white/10 rounded-t-[3rem] sm:rounded-[4rem] p-10 md:p-14 shadow-2xl animate-in slide-in-from-bottom-10">
-              
-              <div className="flex justify-between items-center mb-10">
-                 <div>
-                    <h3 className="text-4xl font-black text-white uppercase italic">{activeModal}</h3>
-                    <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mt-1">Registry Log</p>
-                 </div>
-                 <button onClick={() => setActiveModal(null)} className="p-3 bg-zinc-900 rounded-2xl text-zinc-500 hover:text-white transition-all"><X size={24}/></button>
-              </div>
-
-              <form onSubmit={(e) => {
-                 e.preventDefault();
-                 const fd = new FormData(e.target);
-                 const type = e.nativeEvent.submitter?.getAttribute('data-type') || activeModal;
-                 addTransaction(type, fd.get('amt'), fd.get('cat'), fd.get('note'), fd.get('date'));
-              }} className="space-y-10">
-                 
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-3">
-                       <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-4">Entry Date</label>
-                       <div className="relative">
-                          <Calendar className="absolute left-5 top-1/2 -translate-y-1/2 text-indigo-500" size={16} />
-                          <input name="date" type="date" defaultValue={new Date().toISOString().split('T')[0]} className="w-full bg-zinc-900/50 border border-white/5 rounded-2xl py-4 pl-12 pr-6 text-sm font-bold text-white outline-none focus:border-indigo-500 transition-all" />
-                       </div>
-                    </div>
-                    <div className="space-y-3">
-                       <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-4">Amount</label>
-                       <div className="relative">
-                          <span className="absolute left-5 top-1/2 -translate-y-1/2 text-lg font-black text-indigo-500/50">₹</span>
-                          <input name="amt" type="number" step="0.01" required autoFocus className="w-full bg-zinc-900/50 border border-white/5 rounded-2xl py-4 pl-10 pr-6 text-xl font-mono font-black text-white outline-none focus:border-indigo-500 transition-all" placeholder="0.00" />
-                       </div>
-                    </div>
-                 </div>
-
-                 {activeModal !== 'Transfer' ? (
-                    <div className="space-y-8">
-                       <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-                          {(activeModal === 'Income' ? INCOME_CATEGORIES : SPEND_CATEGORIES).map(c => (
-                             <label key={c.id} className="cursor-pointer group">
-                                <input type="radio" name="cat" value={c.id} className="hidden peer" defaultChecked={c.id === 'Other'} />
-                                <div className="p-4 bg-zinc-900/30 border border-white/5 rounded-2xl flex flex-col items-center gap-2 peer-checked:bg-indigo-600 peer-checked:border-indigo-400 transition-all group-hover:bg-zinc-800">
-                                   <span className="text-xl">{c.icon}</span>
-                                   <span className="text-[8px] font-black text-zinc-500 peer-checked:text-white uppercase tracking-tighter">{c.id}</span>
-                                </div>
-                             </label>
-                          ))}
-                       </div>
-                       <button type="submit" className="w-full py-6 bg-indigo-600 text-white rounded-[2rem] font-black uppercase tracking-widest shadow-xl shadow-indigo-500/20 active:scale-95 transition-all text-xs">Verify & Save</button>
-                    </div>
-                 ) : (
-                    <div className="grid grid-cols-2 gap-4">
-                       <TransferOption type="invest_plus" label="Buy Assets" icon={TrendingUp} color="bg-purple-600" />
-                       <TransferOption type="invest_minus" label="Sell Assets" icon={TrendingDown} color="bg-zinc-800" />
-                       <TransferOption type="save_plus" label="Add Savings" icon={ShieldCheck} color="bg-emerald-600" />
-                       <TransferOption type="save_minus" label="Withdraw" icon={CreditCard} color="bg-zinc-800" />
-                    </div>
-                 )}
-              </form>
-           </div>
+    <!-- HUD NOTIFICATIONS -->
+    <div id="hud" class="fixed bottom-10 left-1/2 -translate-x-1/2 z-[10001] pointer-events-none opacity-0 transition-all duration-300">
+        <div class="glass-card px-6 py-3 rounded-full border-indigo-500/50 flex items-center gap-3">
+            <div id="hud-dot" class="w-2 h-2 rounded-full bg-indigo-400 animate-pulse"></div>
+            <span id="hud-text" class="text-[10px] font-black text-white uppercase tracking-widest"></span>
         </div>
-      )}
-
-      {/* MOBILE NAV BAR */}
-      <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[200] md:hidden w-[85%] max-w-sm">
-         <div className="bg-zinc-900/70 backdrop-blur-3xl border border-white/10 p-2 rounded-[2.5rem] shadow-2xl flex justify-between items-center">
-            <button onClick={() => setActiveTab('Home')} className={`flex-1 py-3.5 rounded-[2rem] flex flex-col items-center gap-1 transition-all ${activeTab === 'Home' ? 'bg-indigo-600 text-white shadow-lg' : 'text-zinc-500'}`}>
-               <PieChart size={20}/>
-               <span className="text-[8px] font-black uppercase tracking-widest">Home</span>
-            </button>
-            <button onClick={() => setActiveModal('Income')} className="flex-1 -mt-10 group">
-               <div className="w-14 h-14 bg-white rounded-full flex items-center justify-center shadow-2xl border-4 border-[#050505] active:scale-90 transition-all">
-                  <Plus size={28} className="text-black font-black"/>
-               </div>
-            </button>
-            <button onClick={() => setActiveTab('Logs')} className={`flex-1 py-3.5 rounded-[2rem] flex flex-col items-center gap-1 transition-all ${activeTab === 'Logs' ? 'bg-indigo-600 text-white shadow-lg' : 'text-zinc-500'}`}>
-               <History size={20}/>
-               <span className="text-[8px] font-black uppercase tracking-widest">Logs</span>
-            </button>
-         </div>
-      </div>
-
     </div>
-  );
-};
 
-const StatBlock = ({ title, amount, icon: Icon, color, bg }) => (
-  <div className="p-8 bg-zinc-900/30 border border-white/5 rounded-[2.5rem] flex items-center justify-between group hover:bg-zinc-900/50 transition-all shadow-xl">
-    <div className="space-y-2">
-       <p className="text-[10px] font-black text-zinc-600 uppercase tracking-widest">{title}</p>
-       <p className="text-2xl font-mono font-black text-white tracking-tighter">{amount}</p>
-    </div>
-    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${bg} ${color} shadow-inner group-hover:scale-110 group-hover:rotate-6 transition-all`}>
-       <Icon size={24} />
-    </div>
-  </div>
-);
+    <script>
+        // --- DATA ARCHITECTURE ---
+        const VAULT = { 
+            PIN: '', 
+            MASTER: localStorage.getItem('mage_v5_master') || '', 
+            TRIES: 5, 
+            LOGGED: false,
+            IDLE_TIMER: null 
+        };
+        
+        const STATE = { 
+            history: [], 
+            ghost: false, 
+            filter: 'day' 
+        };
+        
+        const CATS = {
+            Income: ['Salary', 'Freelance', 'Gift', 'Side Hustle', 'Dividends', 'Cash Back', 'Refund'],
+            Expense: ['Food', 'Groceries', 'Rent', 'Shopping', 'Travel', 'Health', 'Bills', 'Subscriptions', 'Home Repair', 'Vehicle Repair', 'Laundry', 'Misc'],
+            Investment: ['Stocks', 'Mutual Funds', 'Gold', 'Crypto', 'Real Estate', 'Bonds'],
+            Emergency: ['Medical Help', 'Sudden Repair', 'Job Loss Prep', 'Family Help', 'Other Emergency']
+        };
 
-const ActionItem = ({ label, icon: Icon, color, onClick }) => (
-  <button onClick={onClick} className="w-full p-4 bg-white/[0.02] border border-white/5 rounded-2xl flex items-center justify-between group hover:bg-white/[0.05] transition-all active:scale-95 shadow-sm">
-     <div className="flex items-center gap-4">
-        <div className={`p-2.5 rounded-xl bg-black/40 ${color} shadow-lg group-hover:rotate-6 transition-transform`}><Icon size={18}/></div>
-        <span className="text-[11px] font-black text-zinc-300 uppercase tracking-widest leading-none">{label}</span>
-     </div>
-     <ChevronRight size={14} className="text-zinc-800 group-hover:text-indigo-500 transition-all" />
-  </button>
-);
+        // --- SECURITY & AUTH ---
+        function generateKeypad() {
+            const container = document.getElementById('secure-keypad');
+            const digits = [1,2,3,4,5,6,7,8,9,0].sort(() => Math.random() - 0.5); // Randomize for shoulder surfing protection
+            container.innerHTML = digits.map(d => `<button onclick="tapKey(${d})" class="h-14 glass-card rounded-2xl text-xl font-bold text-white active:bg-indigo-500/20 active:scale-90 transition-all">${d}</button>`).join('') + 
+                `<button onclick="resetPin()" class="h-14 glass-card rounded-2xl text-[9px] font-black text-rose-500 uppercase">Clear</button>` +
+                `<button onclick="panicLock()" class="h-14 glass-card rounded-2xl text-zinc-600"><i data-lucide="x" class="w-5 h-5 mx-auto"></i></button>`;
+            lucide.createIcons();
+        }
 
-const TransferOption = ({ type, label, icon: Icon, color }) => (
-  <button type="submit" data-type={type} className={`p-6 rounded-3xl border border-white/5 flex flex-col gap-4 items-center text-center transition-all active:scale-95 ${color} shadow-xl hover:brightness-110 group`}>
-     <div className="p-3 bg-black/20 rounded-xl group-hover:scale-110 transition-transform"><Icon size={22} className="text-white"/></div>
-     <span className="text-[9px] font-black text-white uppercase tracking-widest leading-tight">{label}</span>
-  </button>
-);
+        function tapKey(d) {
+            if (VAULT.PIN.length < 6) {
+                VAULT.PIN += d;
+                navigator.vibrate?.(15);
+                renderPinDots();
+                if (VAULT.PIN.length === 6) setTimeout(validateAccess, 250);
+            }
+            resetIdleTimer();
+        }
 
-export default App;
+        function renderPinDots() {
+            const dots = document.querySelectorAll('#pin-display div');
+            dots.forEach((dot, i) => {
+                if(VAULT.PIN.length > i) {
+                    dot.classList.add('bg-indigo-400', 'border-indigo-400', 'scale-125');
+                } else {
+                    dot.classList.remove('bg-indigo-400', 'border-indigo-400', 'scale-125');
+                }
+            });
+        }
+
+        function resetPin() { VAULT.PIN = ''; renderPinDots(); }
+
+        function validateAccess() {
+            const hashed = btoa(VAULT.PIN);
+            if (!VAULT.MASTER) {
+                VAULT.MASTER = hashed;
+                localStorage.setItem('mage_v5_master', hashed);
+                grantAccess();
+            } else if (VAULT.MASTER === hashed) { 
+                grantAccess(); 
+            } else { 
+                denyAccess(); 
+            }
+        }
+
+        function denyAccess() {
+            VAULT.TRIES--;
+            document.getElementById('auth-feedback').classList.remove('hidden');
+            document.getElementById('lock-hint').innerText = `DENIED: ${VAULT.TRIES} ATTEMPTS LEFT`;
+            if (VAULT.TRIES <= 0) { localStorage.clear(); location.reload(); }
+            resetPin(); generateKeypad();
+            navigator.vibrate?.([50, 50, 50]);
+        }
+
+        function grantAccess() {
+            VAULT.LOGGED = true;
+            document.getElementById('auth-screen').classList.add('opacity-0', 'pointer-events-none', 'scale-150');
+            document.getElementById('main-app').classList.remove('hidden');
+            setTimeout(() => {
+                document.getElementById('main-app').classList.add('opacity-100', 'translate-y-0');
+                loadData();
+                refreshBalances();
+                resetIdleTimer();
+            }, 300);
+            hud("Vault Unlocked", "emerald");
+        }
+
+        function resetIdleTimer() {
+            clearTimeout(VAULT.IDLE_TIMER);
+            if(VAULT.LOGGED) {
+                VAULT.IDLE_TIMER = setTimeout(panicLock, 120000); // 2 min auto-lock
+            }
+        }
+
+        // --- CORE BALANCING LOGIC ---
+        function refreshBalances() {
+            const totals = STATE.history.reduce((acc, t) => {
+                const amt = t.amount;
+                if (t.type === 'Income') acc.bank += amt;
+                if (t.type === 'Expense') acc.bank -= amt;
+                
+                if (t.type === 'Investment') {
+                    if (t.liquidate) {
+                        acc.bank += amt;
+                        acc.invest -= amt;
+                    } else {
+                        acc.bank -= amt;
+                        acc.invest += amt;
+                    }
+                }
+                
+                if (t.type === 'Emergency') {
+                    if (t.liquidate) {
+                        acc.bank += amt;
+                        acc.emergency -= amt;
+                    } else {
+                        acc.bank -= amt;
+                        acc.emergency += amt;
+                    }
+                }
+                return acc;
+            }, { bank: 0, invest: 0, emergency: 0 });
+
+            document.getElementById('display-total').innerText = format(totals.bank);
+            document.getElementById('display-invest').innerText = format(totals.invest);
+            document.getElementById('display-emergency').innerText = format(totals.emergency);
+            document.getElementById('display-worth').innerText = format(totals.bank + totals.invest + totals.emergency);
+            renderLedger();
+        }
+
+        function format(n) {
+            return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n);
+        }
+
+        function renderLedger() {
+            const list = document.getElementById('ledger-list');
+            const now = new Date();
+            
+            const filtered = STATE.history.filter(t => {
+                if (STATE.filter === 'all') return true;
+                const d = new Date(t.date);
+                if (STATE.filter === 'day') return d.toDateString() === now.toDateString();
+                if (STATE.filter === 'week') return (now - d) < 7 * 24 * 60 * 60 * 1000;
+                if (STATE.filter === 'month') return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+                return true;
+            });
+
+            if (filtered.length === 0) {
+                list.innerHTML = `<div class="py-12 text-center text-zinc-600 font-bold uppercase text-[9px] tracking-[0.4em]">Zero Activity Recorded</div>`;
+                return;
+            }
+
+            list.innerHTML = filtered.map(t => {
+                const isPlus = t.type === 'Income' || (t.liquidate);
+                const color = isPlus ? 'text-emerald-500' : 'text-rose-500';
+                const bg = isPlus ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500';
+                const icon = t.type === 'Income' ? 'arrow-up-right' : t.type === 'Expense' ? 'arrow-down-left' : 'repeat';
+                
+                return `
+                <div class="glass-card p-4 rounded-2xl flex justify-between items-center group active:bg-white/5 transition-all">
+                    <div class="flex items-center gap-4">
+                        <div class="w-10 h-10 ${bg} rounded-xl flex items-center justify-center">
+                            <i data-lucide="${icon}" class="w-5 h-5"></i>
+                        </div>
+                        <div>
+                            <p class="text-[10px] font-black text-white uppercase">${t.cat}</p>
+                            <p class="text-[8px] text-zinc-500 font-bold uppercase mono">${t.date}</p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-sm font-black mono blur-amount ${color}">
+                            ${isPlus ? '+' : '-'}${format(t.amount).replace('₹','')}
+                        </p>
+                        <p class="text-[7px] text-zinc-600 font-bold uppercase tracking-widest">${t.type}</p>
+                    </div>
+                </div>
+                `;
+            }).join('');
+            lucide.createIcons();
+        }
+
+        // --- UX LOGIC ---
+        let currentType = 'Income';
+        function triggerEntry(type) {
+            currentType = type;
+            document.getElementById('drawer-header').innerText = type === 'Income' ? 'Add Money' : type === 'Expense' ? 'Spent Money' : type === 'Investment' ? 'Investment' : 'Emergency Fund';
+            
+            // Show liquid toggle for assets
+            const isAsset = (type === 'Investment' || type === 'Emergency');
+            document.getElementById('move-type-box').classList.toggle('hidden', !isAsset);
+            document.getElementById('move-label').innerText = type === 'Investment' ? 'Withdraw from Investment?' : 'Withdraw from Emergency Fund?';
+            
+            document.getElementById('val-date').valueAsDate = new Date();
+            
+            const selector = document.getElementById('category-selector');
+            selector.innerHTML = CATS[type].map(c => `
+                <button type="button" onclick="selectCat('${c}')" id="cat-${c}" class="cat-btn p-3 glass-card rounded-xl text-[9px] font-black uppercase tracking-widest text-zinc-500 border-white/5">
+                    ${c}
+                </button>
+            `).join('');
+            toggleDrawer(true);
+        }
+
+        let selectedCategory = '';
+        function selectCat(c) {
+            selectedCategory = c;
+            document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('bg-indigo-600', 'text-white', 'border-indigo-500'));
+            document.getElementById(`cat-${c}`).classList.add('bg-indigo-600', 'text-white', 'border-indigo-500');
+            navigator.vibrate?.(5);
+        }
+
+        function toggleDrawer(show) {
+            const d = document.getElementById('input-drawer');
+            const p = document.getElementById('drawer-panel');
+            if (show) { 
+                d.classList.remove('hidden'); d.classList.add('flex'); 
+                setTimeout(() => p.classList.remove('translate-y-full'), 10); 
+            } else { 
+                p.classList.add('translate-y-full'); 
+                setTimeout(() => d.classList.add('hidden'), 500); 
+            }
+            resetIdleTimer();
+        }
+
+        document.getElementById('vault-form').onsubmit = (e) => {
+            e.preventDefault();
+            const amt = parseFloat(document.getElementById('val-amt').value);
+            const date = document.getElementById('val-date').value;
+            const liquidate = document.getElementById('val-liquidate').checked;
+            
+            if (!amt || !selectedCategory) {
+                hud("Select Category", "rose");
+                return;
+            }
+
+            STATE.history.unshift({ 
+                id: Date.now(), 
+                amount: amt, 
+                type: currentType, 
+                cat: selectedCategory, 
+                date, 
+                liquidate 
+            });
+            
+            STATE.history.sort((a,b) => new Date(b.date) - new Date(a.date));
+            saveData();
+            refreshBalances();
+            toggleDrawer(false);
+            hud("Vault Updated", "indigo");
+            e.target.reset();
+            selectedCategory = '';
+        };
+
+        // --- UTILITIES ---
+        function setFilter(f) { STATE.filter = f; refreshBalances(); }
+
+        function toggleGhostMode() {
+            STATE.ghost = !STATE.ghost;
+            document.body.classList.toggle('ghost-active', STATE.ghost);
+            document.getElementById('ghost-icon').setAttribute('data-lucide', STATE.ghost ? 'eye-off' : 'eye');
+            lucide.createIcons();
+            hud(STATE.ghost ? "Blur On" : "Blur Off");
+        }
+
+        function panicLock() {
+            VAULT.LOGGED = false;
+            document.getElementById('main-app').classList.replace('opacity-100', 'opacity-0');
+            setTimeout(() => {
+                document.getElementById('main-app').classList.add('hidden');
+                document.getElementById('auth-screen').classList.remove('opacity-0', 'pointer-events-none', 'scale-150');
+                resetPin(); generateKeypad();
+            }, 500);
+        }
+
+        function hud(msg, color = 'indigo') {
+            const h = document.getElementById('hud');
+            const dot = document.getElementById('hud-dot');
+            document.getElementById('hud-text').innerText = msg;
+            dot.className = `w-2 h-2 rounded-full bg-${color}-400 animate-pulse`;
+            h.classList.replace('opacity-0', 'opacity-100');
+            setTimeout(() => h.classList.replace('opacity-100', 'opacity-0'), 2500);
+        }
+
+        function saveData() {
+            const key = btoa(VAULT.MASTER).substr(0,10);
+            localStorage.setItem(`v5_data_${key}`, JSON.stringify(STATE));
+        }
+
+        function loadData() {
+            const key = btoa(VAULT.MASTER).substr(0,10);
+            const saved = localStorage.getItem(`v5_data_${key}`);
+            if (saved) Object.assign(STATE, JSON.parse(saved));
+        }
+
+        // --- OPTIMIZED BACKGROUND ---
+        function initNebula() {
+            const canvas = document.getElementById('nebula-canvas');
+            const ctx = canvas.getContext('2d');
+            let w, h, stars = [];
+
+            const resize = () => {
+                w = canvas.width = window.innerWidth;
+                h = canvas.height = window.innerHeight;
+            };
+            window.addEventListener('resize', resize);
+            resize();
+
+            for(let i=0; i<40; i++) {
+                stars.push({
+                    x: Math.random() * w,
+                    y: Math.random() * h,
+                    size: Math.random() * 1.5,
+                    speed: 0.1 + Math.random() * 0.3
+                });
+            }
+
+            function animate() {
+                ctx.fillStyle = '#030303';
+                ctx.fillRect(0, 0, w, h);
+                ctx.fillStyle = 'rgba(129, 140, 248, 0.2)';
+                stars.forEach(s => {
+                    ctx.beginPath();
+                    ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
+                    ctx.fill();
+                    s.y -= s.speed;
+                    if(s.y < 0) s.y = h;
+                });
+                requestAnimationFrame(animate);
+            }
+            animate();
+        }
+
+        // Global Event Listeners for mobile security
+        window.addEventListener('touchstart', resetIdleTimer);
+        window.onload = () => { initNebula(); generateKeypad(); lucide.createIcons(); };
+    </script>
+</body>
+</html>
