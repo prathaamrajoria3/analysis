@@ -3,9 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
-    <meta name="description" content="Money Mage Pro - The world's most secure wealth intelligence vault with monthly auto-reset and advanced privacy.">
+    <meta name="description" content="Money Mage Pro - The world's most secure wealth intelligence vault.">
     <meta name="theme-color" content="#050505">
-    <meta name="robots" content="noindex, nofollow"> <!-- Privacy First -->
     
     <title>Money Mage Pro | Elite Privacy Vault</title>
     
@@ -18,8 +17,8 @@
         :root { 
             --gold: #FFD700; 
             --obsidian: #050505; 
-            --card-glass: rgba(18, 18, 22, 0.85); 
-            --border-glass: rgba(255, 255, 255, 0.08); 
+            --card-glass: rgba(18, 18, 22, 0.95); 
+            --border-glass: rgba(255, 255, 255, 0.1); 
         }
 
         body { 
@@ -28,25 +27,22 @@
             color: #F8FAFC; 
             overflow-x: hidden;
             -webkit-tap-highlight-color: transparent;
-            touch-action: manipulation;
+            margin: 0;
+            padding: 0;
         }
 
         .bg-glow {
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: 
-                radial-gradient(circle at 10% 10%, rgba(255, 215, 0, 0.05), transparent 40%),
-                radial-gradient(circle at 90% 90%, rgba(255, 215, 0, 0.03), transparent 40%);
+            background: radial-gradient(circle at 50% 0%, rgba(255, 215, 0, 0.07), transparent 70%);
             z-index: -1;
         }
 
         .glass-panel { 
             background: var(--card-glass); 
-            backdrop-filter: blur(25px); 
-            -webkit-backdrop-filter: blur(25px);
+            backdrop-filter: blur(20px); 
             border: 1px solid var(--border-glass); 
             border-radius: 1.5rem;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
         }
 
         .gold-gradient {
@@ -59,184 +55,165 @@
             background: linear-gradient(135deg, #FFD700, #FFA500); 
             color: #000; 
             font-weight: 800;
-            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            transition: all 0.2s ease;
+            cursor: pointer;
         }
 
-        .btn-action:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(255, 215, 0, 0.2); }
-        .btn-action:active { transform: scale(0.96); }
+        .btn-action:active { transform: scale(0.95); opacity: 0.9; }
 
-        .privacy-mode .blur-text { filter: blur(12px); opacity: 0.2; pointer-events: none; }
+        .privacy-mode .blur-text { filter: blur(15px); opacity: 0.1; pointer-events: none; }
         
-        select option { background-color: #0f0f0f !important; color: white !important; padding: 12px; }
-
         input, select { 
-            background: rgba(255,255,255,0.03) !important; 
+            background: rgba(255,255,255,0.05) !important; 
             border: 1px solid rgba(255,255,255,0.1) !important;
             color: white !important;
-            font-family: 'Plus Jakarta Sans', sans-serif;
+            appearance: none;
+            outline: none;
         }
-        input:focus { border-color: var(--gold) !important; background: rgba(255,255,255,0.07) !important; }
+        input:focus { border-color: var(--gold) !important; }
 
         .mono { font-family: 'JetBrains Mono', monospace; }
 
         #toast {
             position: fixed;
-            bottom: 2rem;
+            top: 2rem;
             left: 50%;
-            transform: translateX(-50%) translateY(200%);
+            transform: translateX(-50%) translateY(-200%);
             z-index: 10000;
+            width: 90%;
+            max-width: 400px;
         }
-
-        .shimmer {
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.05), transparent);
-            background-size: 200% 100%;
-            animation: shimmer 2s infinite;
-        }
-        @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
 
         .negative { color: #fb7185 !important; }
+        
+        /* Mobile scroll fix */
+        .custom-scroll::-webkit-scrollbar { width: 4px; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: rgba(255,215,0,0.2); border-radius: 10px; }
     </style>
 </head>
-<body class="p-3 md:p-6 lg:p-10">
+<body class="p-4 md:p-8">
     <div class="bg-glow"></div>
     
-    <div id="toast" class="glass-panel px-8 py-4 border-l-4 border-yellow-500 shadow-2xl transition-transform duration-500 ease-out">
-        <p id="toast-msg" class="text-xs font-black uppercase tracking-widest text-yellow-500"></p>
+    <div id="toast" class="glass-panel px-6 py-4 border-l-4 border-yellow-500 shadow-2xl transition-transform duration-500 ease-out">
+        <p id="toast-msg" class="text-xs font-black uppercase tracking-widest text-yellow-500 text-center"></p>
     </div>
 
-    <div id="app-root" class="max-w-7xl mx-auto relative">
+    <div id="app-root" class="max-w-6xl mx-auto">
         
-        <!-- --- AUTHENTICATION --- -->
-        <section id="auth-view" class="min-h-[85vh] flex flex-col items-center justify-center">
-            <div class="w-full max-w-md glass-panel p-8 md:p-12 relative overflow-hidden text-center">
-                <div id="security-lockdown" class="hidden absolute inset-0 bg-black/98 z-[100] flex flex-col items-center justify-center p-8 backdrop-blur-2xl">
-                    <div class="w-16 h-16 border-4 border-rose-500 border-t-transparent rounded-full animate-spin mb-6"></div>
-                    <p class="text-rose-500 font-black text-xl tracking-tighter uppercase">Security Lockdown</p>
-                    <p class="text-gray-500 text-xs mt-2 italic">Multiple failed attempts detected.</p>
-                    <p class="text-white text-3xl font-black mt-4 mono" id="lock-count">60</p>
+        <!-- --- LOGIN VIEW --- -->
+        <section id="auth-view" class="flex flex-col items-center justify-center min-h-[90vh]">
+            <div class="w-full max-w-md glass-panel p-8 md:p-10 relative overflow-hidden">
+                
+                <!-- Security Lockdown Overlay -->
+                <div id="security-lockdown" class="hidden absolute inset-0 bg-black z-[100] flex flex-col items-center justify-center p-8">
+                    <div class="w-12 h-12 border-4 border-rose-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+                    <p class="text-rose-500 font-black uppercase tracking-tighter">Vault Locked</p>
+                    <p class="text-white text-4xl font-black mt-4 mono" id="lock-count">60</p>
                 </div>
 
-                <div class="mb-10">
-                    <div class="w-20 h-20 bg-yellow-500 rounded-3xl mx-auto mb-6 flex items-center justify-center shadow-[0_0_60px_rgba(255,215,0,0.2)]">
-                        <svg class="w-10 h-10 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                <div class="text-center mb-8">
+                    <div class="w-16 h-16 bg-yellow-500 rounded-2xl mx-auto mb-4 flex items-center justify-center shadow-2xl">
+                        <svg class="w-8 h-8 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
                     </div>
-                    <h1 class="text-4xl font-black gold-gradient tracking-tighter">MONEY MAGE</h1>
-                    <p class="text-[9px] text-gray-500 uppercase font-black tracking-[0.4em] mt-3">Advanced Wealth Intelligence</p>
+                    <h1 class="text-3xl font-black gold-gradient tracking-tighter">MONEY MAGE</h1>
+                    <p class="text-[8px] text-gray-500 uppercase font-black tracking-[0.3em] mt-2">v9.0 Advanced Security</p>
                 </div>
 
-                <div class="space-y-5 text-left">
-                    <div class="bg-yellow-500/5 border border-yellow-500/10 p-4 rounded-2xl">
-                        <p class="text-[9px] font-bold text-yellow-500/80 uppercase text-center leading-relaxed">
-                            8 Character Name + 1 Symbol <br>
-                            6 Digit Numeric PIN Only
-                        </p>
+                <div class="space-y-4">
+                    <div class="bg-yellow-500/5 border border-yellow-500/10 p-3 rounded-xl text-center">
+                        <p class="text-[9px] font-bold text-yellow-500 uppercase">8 Chars + 1 Symbol | 6 Digit PIN</p>
                     </div>
                     
-                    <div>
-                        <input type="text" id="username" maxlength="8" class="w-full rounded-2xl p-4 text-white font-bold text-center mono tracking-widest" placeholder="NAME@123">
-                    </div>
-                    <div>
-                        <input type="password" id="pincode" maxlength="6" inputmode="numeric" class="w-full rounded-2xl p-4 text-white text-center text-3xl tracking-[0.5em] font-black mono" placeholder="000000">
-                    </div>
-                    <button id="btn-login" onclick="handleAuth()" class="w-full btn-action py-5 rounded-2xl text-lg font-black uppercase tracking-widest shadow-lg">Decrypt Vault</button>
+                    <input type="text" id="username" maxlength="8" class="w-full rounded-xl p-4 text-white font-bold text-center mono tracking-widest" placeholder="USER_@12" autocomplete="off">
+                    <input type="password" id="pincode" maxlength="6" inputmode="numeric" class="w-full rounded-xl p-4 text-white text-center text-2xl tracking-[0.4em] font-black mono" placeholder="******">
                     
-                    <p class="text-[8px] text-gray-600 text-center uppercase font-bold mt-4">Zero-Knowledge Encryption Active</p>
+                    <button id="btn-login" onclick="handleAuth()" class="w-full btn-action py-5 rounded-xl text-sm font-black uppercase tracking-widest mt-2">
+                        Decrypt Vault
+                    </button>
                 </div>
             </div>
         </section>
 
-        <!-- --- DASHBOARD --- -->
-        <div id="dashboard" class="hidden space-y-8">
-            <nav class="glass-panel p-4 flex justify-between items-center sticky top-4 z-50 shadow-2xl">
-                <div class="flex items-center gap-4">
-                    <div class="w-12 h-12 bg-yellow-500 rounded-2xl flex items-center justify-center text-black font-black text-xl shadow-lg">M</div>
-                    <div>
-                        <p class="text-[9px] text-gray-500 uppercase font-black tracking-widest">Vault Commander</p>
-                        <p class="text-md font-black text-white mono" id="display-user"></p>
-                    </div>
+        <!-- --- DASHBOARD VIEW --- -->
+        <div id="dashboard" class="hidden space-y-6 pb-20">
+            <!-- Nav -->
+            <nav class="glass-panel p-4 flex justify-between items-center sticky top-2 z-50">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-yellow-500 rounded-xl flex items-center justify-center text-black font-black shadow-lg">M</div>
+                    <p class="text-sm font-black text-white mono truncate max-w-[120px]" id="display-user"></p>
                 </div>
                 <div class="flex gap-2">
-                    <button onclick="togglePrivacy()" class="w-12 h-12 glass-panel flex items-center justify-center hover:bg-white/5 transition-all">
-                        <svg class="w-5 h-5 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88L14.59 5.17m-7.447 3.527L5.47 7.031m0 0l-1.84-1.84M21 12a9.965 9.965 0 01-1.557 3.028m-2.138-2.138l1.84 1.84m0 0l1.84 1.84m-6.142-6.142l3.142-3.142" /></svg>
+                    <button onclick="togglePrivacy()" class="p-3 glass-panel text-yellow-500">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
                     </button>
-                    <button onclick="logout()" class="w-12 h-12 bg-rose-500/10 text-rose-400 rounded-2xl border border-rose-500/20 flex items-center justify-center">
+                    <button onclick="logout()" class="p-3 bg-rose-500/10 text-rose-400 rounded-xl border border-rose-500/20">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7" /></svg>
                     </button>
                 </div>
             </nav>
 
-            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                <!-- Sidebar Summary -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <!-- Summary Card -->
                 <div class="lg:col-span-4 space-y-6">
-                    <div class="glass-panel p-8 border-l-[6px] border-yellow-500 overflow-hidden relative group">
-                        <div class="shimmer absolute inset-0 opacity-20 pointer-events-none"></div>
-                        <p class="text-[10px] text-gray-500 uppercase font-black tracking-widest mb-3">Total Net Worth</p>
-                        <h2 class="text-6xl font-black blur-text gold-gradient mono tracking-tighter" id="total-net">₹0</h2>
-                        <div class="mt-6 flex justify-between items-end">
+                    <div class="glass-panel p-6 border-l-[6px] border-yellow-500">
+                        <p class="text-[10px] text-gray-500 uppercase font-black tracking-widest mb-1">Total Net Worth</p>
+                        <h2 class="text-4xl font-black blur-text gold-gradient mono" id="total-net">₹0</h2>
+                        <div class="mt-4 pt-4 border-t border-white/5 flex justify-between">
                             <div>
-                                <p class="text-[9px] text-rose-500 font-black uppercase">Monthly Spending</p>
-                                <p class="text-xl font-black blur-text mono" id="monthly-spend">₹0</p>
+                                <p class="text-[8px] text-rose-500 font-bold uppercase">Monthly Spent</p>
+                                <p class="text-lg font-black blur-text mono" id="monthly-spend">₹0</p>
                             </div>
                             <div class="text-right">
-                                <p class="text-[8px] text-gray-500 font-bold uppercase">Next Reset</p>
-                                <p class="text-[10px] text-white font-black" id="next-reset-date">--/--/--</p>
+                                <p class="text-[8px] text-gray-500 font-bold uppercase">Reset Date</p>
+                                <p class="text-[10px] text-white font-black" id="next-reset-date">--/--</p>
                             </div>
                         </div>
                     </div>
 
-                    <div class="glass-panel p-6 shadow-xl">
-                        <h3 class="font-black mb-6 flex items-center gap-3">
-                            <span class="w-2 h-6 bg-yellow-500 rounded-full"></span>
-                            Secure Entry
+                    <!-- Input Form -->
+                    <div class="glass-panel p-6">
+                        <h3 class="font-black text-xs uppercase tracking-widest mb-4 flex items-center gap-2">
+                            <span class="w-1 h-4 bg-yellow-500 rounded-full"></span> New Entry
                         </h3>
-                        <div class="space-y-4">
-                            <div>
-                                <select id="tx-type" onchange="updateCategories()" class="w-full p-4 rounded-2xl text-xs font-black uppercase tracking-widest">
-                                    <option value="income">💰 Income</option>
-                                    <option value="expense">🛒 Expense</option>
-                                    <option value="invest_in">📈 Move to Investment</option>
-                                    <option value="invest_out">📉 Pull from Investment</option>
-                                    <option value="emg_in">🛡️ Move to Safe</option>
-                                    <option value="emg_out">🔓 Pull from Safe</option>
-                                </select>
+                        <div class="space-y-3">
+                            <select id="tx-type" onchange="updateCategories()" class="w-full p-4 rounded-xl text-xs font-black uppercase tracking-widest">
+                                <option value="income">💰 Income</option>
+                                <option value="expense">🛒 Expense</option>
+                                <option value="invest_in">📈 Investment (+)</option>
+                                <option value="invest_out">📉 Investment (-)</option>
+                                <option value="emg_in">🛡️ Emergency (+)</option>
+                                <option value="emg_out">🔓 Emergency (-)</option>
+                            </select>
+                            <select id="tx-category" class="w-full p-4 rounded-xl text-xs font-bold"></select>
+                            <div class="grid grid-cols-2 gap-2">
+                                <input type="date" id="tx-date" class="w-full p-4 rounded-xl text-[10px] font-bold">
+                                <input type="number" id="tx-amount" class="w-full p-4 rounded-xl text-sm font-black mono" placeholder="₹0.00">
                             </div>
-                            <div>
-                                <select id="tx-category" class="w-full p-4 rounded-2xl text-xs font-bold"></select>
-                            </div>
-                            <div class="grid grid-cols-2 gap-4">
-                                <input type="date" id="tx-date" class="w-full p-4 rounded-2xl text-xs font-bold">
-                                <input type="number" id="tx-amount" class="w-full p-4 rounded-2xl text-sm font-black mono" placeholder="Amount">
-                            </div>
-                            <button onclick="processTransaction()" class="w-full btn-action py-5 rounded-2xl font-black text-sm uppercase tracking-widest">Commit to Ledger</button>
+                            <button onclick="processTransaction()" class="w-full btn-action py-4 rounded-xl font-black text-xs uppercase tracking-widest">Commit Entry</button>
                         </div>
                     </div>
                 </div>
 
-                <!-- Main Data -->
-                <div class="lg:col-span-8 space-y-6">
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div class="glass-panel p-6 text-center group hover:bg-white/[0.03] transition-all">
-                            <p class="text-[10px] text-emerald-500 font-black mb-1 uppercase tracking-tighter">Liquid Cash</p>
-                            <p class="text-2xl font-black blur-text mono" id="stat-bal">₹0</p>
+                <!-- History & Stats -->
+                <div class="lg:col-span-8 space-y-4">
+                    <div class="grid grid-cols-3 gap-2">
+                        <div class="glass-panel p-4 text-center">
+                            <p class="text-[8px] text-emerald-500 font-black uppercase">Liquid</p>
+                            <p class="text-sm font-black blur-text mono" id="stat-bal">₹0</p>
                         </div>
-                        <div class="glass-panel p-6 text-center group hover:bg-white/[0.03] transition-all">
-                            <p class="text-[10px] text-purple-500 font-black mb-1 uppercase tracking-tighter">Growth Assets</p>
-                            <p class="text-2xl font-black blur-text mono" id="stat-invest">₹0</p>
+                        <div class="glass-panel p-4 text-center">
+                            <p class="text-[8px] text-purple-500 font-black uppercase">Assets</p>
+                            <p class="text-sm font-black blur-text mono" id="stat-invest">₹0</p>
                         </div>
-                        <div class="glass-panel p-6 text-center group hover:bg-white/[0.03] transition-all">
-                            <p class="text-[10px] text-sky-500 font-black mb-1 uppercase tracking-tighter">Emergency Vault</p>
-                            <p class="text-2xl font-black blur-text mono" id="stat-emergency">₹0</p>
+                        <div class="glass-panel p-4 text-center">
+                            <p class="text-[8px] text-sky-500 font-black uppercase">Vault</p>
+                            <p class="text-sm font-black blur-text mono" id="stat-emergency">₹0</p>
                         </div>
                     </div>
 
-                    <div class="glass-panel p-8 min-h-[500px] flex flex-col">
-                        <header class="flex justify-between items-center mb-8">
-                            <h3 class="font-black text-xl tracking-tight">Active Ledger</h3>
-                            <div class="px-4 py-1.5 bg-white/5 rounded-full border border-white/5">
-                                <span class="text-[9px] font-black text-gray-500 uppercase tracking-widest">Military Grade Encryption</span>
-                            </div>
-                        </header>
-                        <div id="tx-history" class="space-y-3 flex-1 overflow-y-auto pr-2 custom-scroll max-h-[600px]"></div>
+                    <div class="glass-panel p-6 min-h-[400px]">
+                        <p class="text-[10px] font-black text-gray-500 uppercase mb-4 tracking-widest">Recent Activity</p>
+                        <div id="tx-history" class="space-y-2 max-h-[500px] overflow-y-auto custom-scroll pr-2"></div>
                     </div>
                 </div>
             </div>
@@ -252,19 +229,19 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'money-mage-v9-pro';
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'money-mage-v9-final';
 
         let currentUser = null;
         let userData = null;
         let failCount = 0;
 
         const CATEGORIES = {
-            income: ['Salary', 'Freelance', 'Trading Profit', 'Business', 'Rent Received', 'Bonus', 'Gift', 'Dividends', 'Tax Refund', 'Commission', 'Other'],
-            expense: ['Groceries', 'Dine Out', 'Electricity', 'Water Bill', 'Rent', 'Internet', 'Mobile Recharge', 'Travel/Fuel', 'Insurance', 'Medicines', 'Gym/Health', 'Shopping', 'Subscriptions', 'Education', 'Charity', 'Maintenance', 'Taxes', 'Other'],
-            invest_in: ['Indian Stocks', 'US Stocks', 'Mutual Funds', 'Gold (Digital)', 'Physical Gold', 'Crypto', 'Fixed Deposit', 'Public Provident Fund', 'Real Estate', 'Startup Equity', 'Bonds'],
-            invest_out: ['Stock Sell', 'Mutual Fund Exit', 'Gold Sale', 'Crypto Payout', 'Rental Income', 'Asset Liquidation'],
-            emg_in: ['Emergency Buffer', 'Safety Net', 'Contingency Fund', 'Rainy Day Fund'],
-            emg_out: ['Medical Emergency', 'Accident', 'Job Loss Support', 'Home Repair', 'Unforeseen Debt']
+            income: ['Salary', 'Freelance', 'Trading', 'Business', 'Rent', 'Bonus', 'Gift', 'Dividends', 'Refund', 'Commission', 'Other'],
+            expense: ['Groceries', 'Food', 'Electricity', 'Water', 'Rent', 'Wifi', 'Mobile', 'Travel', 'Insurance', 'Medical', 'Gym', 'Shopping', 'Netflix', 'Education', 'Charity', 'Maintenance', 'Taxes', 'Other'],
+            invest_in: ['Stocks', 'US Stocks', 'Mutual Funds', 'Gold', 'Physical Gold', 'Crypto', 'FD', 'PPF', 'Real Estate', 'Equity', 'Bonds'],
+            invest_out: ['Stock Sell', 'MF Exit', 'Gold Sale', 'Crypto Payout', 'Rental', 'Liquidation'],
+            emg_in: ['Safety Net', 'Buffer', 'Contingency', 'Rainy Day'],
+            emg_out: ['Medical', 'Accident', 'Job Loss', 'Repair', 'Debt Pay']
         };
 
         const initAuth = async () => {
@@ -274,7 +251,7 @@
                 } else {
                     await signInAnonymously(auth);
                 }
-            } catch(e) { console.error("Cloud Auth Failed"); }
+            } catch(e) { console.warn("Auth check..."); }
         };
         initAuth();
 
@@ -283,20 +260,21 @@
             const pin = document.getElementById('pincode').value.trim();
             const btn = document.getElementById('btn-login');
 
-            // 8 Characters + 1 Symbol Validation
+            // Regex for at least one symbol
             const symbolRegex = /[!@#$%^&*(),.?":{}|<>_]/;
+            
             if (name.length !== 8 || !symbolRegex.test(name)) {
-                return notify("⚠️ Name must be 8 chars + 1 symbol");
+                return notify("Name: 8 chars + 1 Symbol");
             }
             if (pin.length !== 6 || isNaN(pin)) {
-                return notify("⚠️ PIN must be 6 digits only");
+                return notify("PIN: 6 Digits Only");
             }
             
-            btn.innerText = "AUTHENTICATING...";
+            btn.innerText = "OPENING VAULT...";
             btn.disabled = true;
 
-            const key = btoa(name.toLowerCase()).substring(0, 20);
-            const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', key);
+            const userKey = btoa(name.toLowerCase()).replace(/=/g, '').substring(0, 20);
+            const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', userKey);
             
             try {
                 const snap = await getDoc(userRef);
@@ -304,10 +282,10 @@
 
                 if (snap.exists()) {
                     if (snap.data().pin === pin) {
-                        launch(key, snap.data());
+                        launch(userKey, snap.data());
                     } else {
                         failCount++;
-                        notify(`❌ Access Denied (${failCount}/3)`);
+                        notify(`Access Denied (${failCount}/3)`);
                         btn.innerText = "DECRYPT VAULT";
                         btn.disabled = false;
                         if (failCount >= 3) lockdown();
@@ -321,61 +299,59 @@
                         history: [] 
                     };
                     await setDoc(userRef, fresh);
-                    launch(key, fresh);
+                    launch(userKey, fresh);
                 }
             } catch(e) { 
-                notify("Cloud Sync Offline"); 
+                notify("Sync Error. Retry."); 
                 btn.innerText = "DECRYPT VAULT";
                 btn.disabled = false;
             }
         };
 
-        async function checkMonthlyReset(data) {
-            const currentMonth = new Date().getMonth();
-            if (data.lastResetMonth !== currentMonth) {
-                // Perform Hard Reset for new month
-                const resetData = {
-                    ...data,
-                    balance: 0,
-                    investments: 0,
-                    emergency: 0,
-                    monthlySpent: 0,
-                    lastResetMonth: currentMonth,
-                    history: []
-                };
-                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', currentUser), resetData);
-                notify("🗓️ New Month: Ledger Reset to 0");
-                return resetData;
-            }
-            return data;
-        }
-
         function launch(uid, data) {
             currentUser = uid;
             
-            gsap.to("#auth-view", { opacity: 0, scale: 0.8, duration: 0.8, ease: "expo.inOut", onComplete: async () => {
-                document.getElementById('auth-view').classList.add('hidden');
-                document.getElementById('dashboard').classList.remove('hidden');
+            // GSAP Transition for clean entrance
+            gsap.to("#auth-view", { opacity: 0, scale: 0.9, duration: 0.4, onComplete: () => {
+                document.getElementById('auth-view').style.display = 'none';
+                const dash = document.getElementById('dashboard');
+                dash.classList.remove('hidden');
+                dash.style.opacity = 0;
+                
                 document.getElementById('display-user').innerText = data.username;
                 
                 const nextMonth = new Date();
                 nextMonth.setMonth(nextMonth.getMonth() + 1);
                 nextMonth.setDate(1);
-                document.getElementById('next-reset-date').innerText = nextMonth.toLocaleDateString();
+                document.getElementById('next-reset-date').innerText = nextMonth.toLocaleDateString('en-GB', {day:'2-digit', month:'2-digit'});
                 
                 document.getElementById('tx-date').valueAsDate = new Date();
                 updateCategories();
                 
-                gsap.from("#dashboard", { opacity: 0, y: 50, duration: 1, ease: "expo.out" });
+                window.scrollTo(0,0);
+                gsap.to(dash, { opacity: 1, duration: 0.5 });
                 
-                onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'users', currentUser), async (s) => {
+                onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'users', currentUser), (s) => {
                     if (s.exists()) {
-                        let currentData = s.data();
-                        userData = await checkMonthlyReset(currentData);
+                        userData = s.data();
+                        checkMonthlyReset();
                         render(); 
                     }
                 });
             }});
+        }
+
+        async function checkMonthlyReset() {
+            const currentMonth = new Date().getMonth();
+            if (userData.lastResetMonth !== currentMonth) {
+                const reset = {
+                    ...userData,
+                    balance: 0, investments: 0, emergency: 0, monthlySpent: 0,
+                    lastResetMonth: currentMonth, history: []
+                };
+                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', currentUser), reset);
+                notify("New Month: Vault Reset");
+            }
         }
 
         window.updateCategories = () => {
@@ -390,30 +366,22 @@
             const cat = document.getElementById('tx-category').value;
             const date = document.getElementById('tx-date').value;
 
-            if (isNaN(amt)) return notify("⚠️ Enter amount");
+            if (!amt || isNaN(amt)) return notify("Enter valid amount");
 
             let u = { ...userData };
             const log = { id: Date.now(), type, cat, amt, date };
 
-            if (type === 'income') {
-                u.balance += amt;
-            } else if (type === 'expense') {
-                u.balance -= amt; // Allow negative
-                u.monthlySpent += amt;
-            } else if (type === 'invest_in') {
-                u.balance -= amt; u.investments += amt;
-            } else if (type === 'invest_out') {
-                u.investments -= amt; u.balance += amt;
-            } else if (type === 'emg_in') {
-                u.balance -= amt; u.emergency += amt;
-            } else if (type === 'emg_out') {
-                u.emergency -= amt; u.balance += amt;
-            }
+            if (type === 'income') u.balance += amt;
+            else if (type === 'expense') { u.balance -= amt; u.monthlySpent += amt; }
+            else if (type === 'invest_in') { u.balance -= amt; u.investments += amt; }
+            else if (type === 'invest_out') { u.investments -= amt; u.balance += amt; }
+            else if (type === 'emg_in') { u.balance -= amt; u.emergency += amt; }
+            else if (type === 'emg_out') { u.emergency -= amt; u.balance += amt; }
 
             u.history.unshift(log);
             await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', currentUser), u);
             document.getElementById('tx-amount').value = "";
-            notify("✅ Ledger Updated");
+            notify("Entry Saved");
         };
 
         window.deleteRecord = async (id) => {
@@ -442,37 +410,32 @@
 
             const container = document.getElementById('tx-history');
             container.innerHTML = userData.history.map(h => `
-                <div class="p-5 glass-panel flex justify-between items-center animate-reveal border-none bg-white/[0.02] hover:bg-white/[0.05] transition-all">
-                    <div class="flex items-center gap-4">
-                        <div class="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center text-xl">
-                            ${h.type.includes('income') ? '🟢' : h.type.includes('expense') ? '🔴' : '🟡'}
-                        </div>
+                <div class="p-4 glass-panel flex justify-between items-center bg-white/[0.02] border-none">
+                    <div class="flex items-center gap-3">
+                        <div class="text-lg">${h.type.includes('income') ? '🟢' : h.type.includes('expense') ? '🔴' : '🟡'}</div>
                         <div>
-                            <p class="text-xs font-black text-white uppercase tracking-wider">${h.cat}</p>
-                            <p class="text-[8px] text-gray-500 font-bold mono">${h.date}</p>
+                            <p class="text-[9px] font-black text-white uppercase">${h.cat}</p>
+                            <p class="text-[7px] text-gray-500 font-bold mono">${h.date}</p>
                         </div>
                     </div>
-                    <div class="flex items-center gap-6">
-                        <p class="text-sm font-black mono ${h.type.includes('in') || h.type === 'income' ? 'text-emerald-400' : 'text-rose-400'}">
-                            ${h.type.includes('in') || h.type === 'income' ? '+' : '-'}₹${Math.abs(h.amt).toLocaleString()}
+                    <div class="flex items-center gap-4">
+                        <p class="text-xs font-black mono ${h.type.includes('in') || h.type === 'income' ? 'text-emerald-400' : 'text-rose-400'}">
+                            ₹${h.amt.toLocaleString()}
                         </p>
-                        <button onclick="deleteRecord(${h.id})" class="text-gray-700 hover:text-rose-500 transition-colors">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7" /></svg>
+                        <button onclick="deleteRecord(${h.id})" class="text-gray-700 p-1">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7" /></svg>
                         </button>
                     </div>
                 </div>
             `).join('');
-            
-            gsap.from(".animate-reveal", { opacity: 0, x: -20, stagger: 0.05, duration: 0.5, ease: "power2.out" });
         }
 
         function counter(id, val) {
             const el = document.getElementById(id);
             const start = parseFloat(el.innerText.replace(/[₹,]/g, '')) || 0;
             const obj = { v: start };
-            gsap.to(obj, { v: val, duration: 1.5, ease: "expo.out", onUpdate: () => {
-                const formatted = Math.floor(obj.v).toLocaleString();
-                el.innerText = `₹${formatted}`;
+            gsap.to(obj, { v: val, duration: 1, onUpdate: () => {
+                el.innerText = `₹${Math.floor(obj.v).toLocaleString()}`;
                 if (obj.v < 0) el.classList.add('negative');
                 else el.classList.remove('negative');
             }});
@@ -482,7 +445,7 @@
             const t = document.getElementById('toast');
             document.getElementById('toast-msg').innerText = m;
             t.style.transform = "translateX(-50%) translateY(0)";
-            setTimeout(() => t.style.transform = "translateX(-50%) translateY(200%)", 3000);
+            setTimeout(() => t.style.transform = "translateX(-50%) translateY(-200%)", 3000);
         }
 
         function lockdown() {
