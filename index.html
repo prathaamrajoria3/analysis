@@ -29,6 +29,8 @@
             -webkit-tap-highlight-color: transparent;
             margin: 0;
             padding: 0;
+            /* Ensure smooth height transitions on mobile */
+            min-height: 100vh;
         }
 
         .bg-glow {
@@ -57,6 +59,7 @@
             font-weight: 800;
             transition: all 0.2s ease;
             cursor: pointer;
+            touch-action: manipulation;
         }
 
         .btn-action:active { transform: scale(0.95); opacity: 0.9; }
@@ -69,9 +72,10 @@
             color: white !important;
             appearance: none;
             outline: none;
+            font-size: 16px !important; /* Prevents iOS auto-zoom */
         }
         
-        /* Fix for select option visibility on mobile/browser themes */
+        /* High-priority fix for select option visibility on mobile/browser themes */
         select option {
             background-color: #121216 !important;
             color: white !important;
@@ -317,15 +321,12 @@
         function launch(uid, data) {
             currentUser = uid;
             
-            // Mobile entrance fix: Direct display manipulation before GSAP to ensure responsiveness
             const authView = document.getElementById('auth-view');
             const dashView = document.getElementById('dashboard');
             
-            // Prepare dashboard
-            dashView.classList.remove('hidden');
-            dashView.style.opacity = '0';
-            dashView.style.display = 'block';
-
+            // Force reset view states for mobile reliability
+            authView.style.pointerEvents = 'none';
+            
             // Fill initial data immediately
             document.getElementById('display-user').innerText = data.username;
             const nextMonth = new Date();
@@ -335,24 +336,28 @@
             document.getElementById('tx-date').valueAsDate = new Date();
             updateCategories();
 
-            // GSAP Entrance
-            gsap.to(authView, { 
-                opacity: 0, 
-                scale: 0.95, 
-                duration: 0.3, 
-                onComplete: () => {
-                    authView.style.display = 'none';
-                    window.scrollTo(0,0);
-                    gsap.to(dashView, { 
-                        opacity: 1, 
-                        duration: 0.4,
-                        onComplete: () => {
-                            // Secondary scroll forced for mobile browsers
-                            setTimeout(() => window.scrollTo(0,0), 50);
-                        }
-                    });
-                }
-            });
+            // Direct execution sequence to prevent GSAP stalls
+            authView.classList.add('transition-all', 'duration-500', 'opacity-0', 'scale-95');
+            
+            setTimeout(() => {
+                authView.style.display = 'none';
+                dashView.classList.remove('hidden');
+                dashView.classList.add('block');
+                dashView.style.opacity = '0';
+                
+                // Trigger layout recalibration
+                window.scrollTo(0,0);
+                
+                // Smooth fade in for dashboard
+                gsap.to(dashView, { 
+                    opacity: 1, 
+                    duration: 0.5,
+                    clearProps: "all",
+                    onComplete: () => {
+                        window.scrollTo(0,0);
+                    }
+                });
+            }, 500);
 
             // Start Snapshot
             onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'users', currentUser), (s) => {
@@ -382,12 +387,15 @@
         window.updateCategories = () => {
             const type = document.getElementById('tx-type').value;
             const catEl = document.getElementById('tx-category');
-            // Explicitly styling options here just in case some mobile browsers ignore CSS !important
-            catEl.innerHTML = CATEGORIES[type].map(c => `<option value="${c}" style="background-color: #121216; color: white;">${c}</option>`).join('');
+            // Explicitly styling options here to override mobile OS overrides
+            catEl.innerHTML = CATEGORIES[type].map(c => 
+                `<option value="${c}" style="background-color: #121216 !important; color: white !important;">${c}</option>`
+            ).join('');
         };
 
         window.processTransaction = async () => {
-            const amt = parseFloat(document.getElementById('tx-amount').value);
+            const amtEl = document.getElementById('tx-amount');
+            const amt = parseFloat(amtEl.value);
             const type = document.getElementById('tx-type').value;
             const cat = document.getElementById('tx-category').value;
             const date = document.getElementById('tx-date').value;
@@ -405,9 +413,15 @@
             else if (type === 'emg_out') { u.emergency -= amt; u.balance += amt; }
 
             u.history.unshift(log);
-            await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', currentUser), u);
-            document.getElementById('tx-amount').value = "";
-            notify("Entry Saved");
+            amtEl.value = "";
+            amtEl.blur(); // Dismiss mobile keyboard
+            
+            try {
+                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', currentUser), u);
+                notify("Entry Saved");
+            } catch(e) {
+                notify("Network Error");
+            }
         };
 
         window.deleteRecord = async (id) => {
@@ -448,7 +462,7 @@
                         <p class="text-xs font-black mono ${h.type.includes('in') || h.type === 'income' ? 'text-emerald-400' : 'text-rose-400'}">
                             ₹${h.amt.toLocaleString()}
                         </p>
-                        <button onclick="deleteRecord(${h.id})" class="text-gray-700 p-1">
+                        <button onclick="deleteRecord(${h.id})" class="text-gray-700 p-1 active:text-rose-500 transition-colors">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7" /></svg>
                         </button>
                     </div>
