@@ -70,6 +70,13 @@
             appearance: none;
             outline: none;
         }
+        
+        /* Fix for select option visibility on mobile/browser themes */
+        select option {
+            background-color: #121216 !important;
+            color: white !important;
+        }
+        
         input:focus { border-color: var(--gold) !important; }
 
         .mono { font-family: 'JetBrains Mono', monospace; }
@@ -260,7 +267,6 @@
             const pin = document.getElementById('pincode').value.trim();
             const btn = document.getElementById('btn-login');
 
-            // Regex for at least one symbol
             const symbolRegex = /[!@#$%^&*(),.?":{}|<>_]/;
             
             if (name.length !== 8 || !symbolRegex.test(name)) {
@@ -311,34 +317,53 @@
         function launch(uid, data) {
             currentUser = uid;
             
-            // GSAP Transition for clean entrance
-            gsap.to("#auth-view", { opacity: 0, scale: 0.9, duration: 0.4, onComplete: () => {
-                document.getElementById('auth-view').style.display = 'none';
-                const dash = document.getElementById('dashboard');
-                dash.classList.remove('hidden');
-                dash.style.opacity = 0;
-                
-                document.getElementById('display-user').innerText = data.username;
-                
-                const nextMonth = new Date();
-                nextMonth.setMonth(nextMonth.getMonth() + 1);
-                nextMonth.setDate(1);
-                document.getElementById('next-reset-date').innerText = nextMonth.toLocaleDateString('en-GB', {day:'2-digit', month:'2-digit'});
-                
-                document.getElementById('tx-date').valueAsDate = new Date();
-                updateCategories();
-                
-                window.scrollTo(0,0);
-                gsap.to(dash, { opacity: 1, duration: 0.5 });
-                
-                onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'users', currentUser), (s) => {
-                    if (s.exists()) {
-                        userData = s.data();
-                        checkMonthlyReset();
-                        render(); 
-                    }
-                });
-            }});
+            // Mobile entrance fix: Direct display manipulation before GSAP to ensure responsiveness
+            const authView = document.getElementById('auth-view');
+            const dashView = document.getElementById('dashboard');
+            
+            // Prepare dashboard
+            dashView.classList.remove('hidden');
+            dashView.style.opacity = '0';
+            dashView.style.display = 'block';
+
+            // Fill initial data immediately
+            document.getElementById('display-user').innerText = data.username;
+            const nextMonth = new Date();
+            nextMonth.setMonth(nextMonth.getMonth() + 1);
+            nextMonth.setDate(1);
+            document.getElementById('next-reset-date').innerText = nextMonth.toLocaleDateString('en-GB', {day:'2-digit', month:'2-digit'});
+            document.getElementById('tx-date').valueAsDate = new Date();
+            updateCategories();
+
+            // GSAP Entrance
+            gsap.to(authView, { 
+                opacity: 0, 
+                scale: 0.95, 
+                duration: 0.3, 
+                onComplete: () => {
+                    authView.style.display = 'none';
+                    window.scrollTo(0,0);
+                    gsap.to(dashView, { 
+                        opacity: 1, 
+                        duration: 0.4,
+                        onComplete: () => {
+                            // Secondary scroll forced for mobile browsers
+                            setTimeout(() => window.scrollTo(0,0), 50);
+                        }
+                    });
+                }
+            });
+
+            // Start Snapshot
+            onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'users', currentUser), (s) => {
+                if (s.exists()) {
+                    userData = s.data();
+                    checkMonthlyReset();
+                    render(); 
+                }
+            }, (err) => {
+                console.error("Firestore Error:", err);
+            });
         }
 
         async function checkMonthlyReset() {
@@ -357,7 +382,8 @@
         window.updateCategories = () => {
             const type = document.getElementById('tx-type').value;
             const catEl = document.getElementById('tx-category');
-            catEl.innerHTML = CATEGORIES[type].map(c => `<option value="${c}">${c}</option>`).join('');
+            // Explicitly styling options here just in case some mobile browsers ignore CSS !important
+            catEl.innerHTML = CATEGORIES[type].map(c => `<option value="${c}" style="background-color: #121216; color: white;">${c}</option>`).join('');
         };
 
         window.processTransaction = async () => {
