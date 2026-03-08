@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#05030a">
+    
+    <!-- Advanced SEO Meta Tags -->
+    <title>Support Us - Money Mage</title>
+    <meta name="description" content="Support Money Mage - Your favorite free, magical finance tracker. Scan the UPI QR code to donate and help us keep the project alive.">
+    <meta name="keywords" content="support money mage, donate, finance tracker, upi donation, sponsor, personal finance">
+    <meta name="author" content="Money Mage">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://moneymage.app/support.html">
+    
+    <!-- Open Graph for Social Sharing -->
+    <meta property="og:title" content="Support Us - Money Mage">
+    <meta property="og:description" content="Help us keep Money Mage free and magical. Scan to support via UPI.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://moneymage.app/support.html">
+    <meta property="og:image" content="https://lh3.googleusercontent.com/p/AF1QipO-K-wZ9PnvHBjDX8l8y_LIlVJUUtVUt57XFLik=s1360-w1360-h1020-rw">
+    <meta property="og:site_name" content="Money Mage">
+
+    <!-- Twitter Card Meta Tags -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Support Us - Money Mage">
+    <meta name="twitter:description" content="Help us keep Money Mage free and magical. Scan to support via UPI.">
+    <meta name="twitter:image" content="https://lh3.googleusercontent.com/p/AF1QipO-K-wZ9PnvHBjDX8l8y_LIlVJUUtVUt57XFLik=s1360-w1360-h1020-rw">
+
+    <!-- Schema.org JSON-LD for Advanced SEO -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebPage",
+      "name": "Support Money Mage",
+      "description": "Support page for the Money Mage finance tracker application.",
+      "url": "https://moneymage.app/support.html",
+      "potentialAction": {
+        "@type": "DonateAction",
+        "recipient": {
+          "@type": "Organization",
+          "name": "Money Mage"
+        }
+      }
+    }
+    </script>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-color: #05030a;
+            --glass-bg: rgba(25, 15, 45, 0.45);
+            --glass-border: rgba(139, 92, 246, 0.2);
+            --magic-purple: #8b5cf6;
+            --magic-purple-glow: rgba(139, 92, 246, 0.6);
+            --text-main: #f8fafc;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg-color);
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(139, 92, 246, 0.12) 0%, transparent 50%),
+                radial-gradient(circle at 90% 80%, rgba(236, 72, 153, 0.1) 0%, transparent 50%);
+            color: var(--text-main);
+            min-height: 100vh;
+            background-attachment: fixed;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem 1rem;
+        }
+
+        .glass-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid var(--glass-border);
+            border-radius: 1.75rem;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .glass-card:hover {
+            border-color: rgba(139, 92, 246, 0.4);
+            box-shadow: 0 12px 48px rgba(139, 92, 246, 0.15);
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0) scale(1); }
+            50% { transform: translateY(-8px) scale(1.02); }
+        }
+        .floating { animation: float 6s ease-in-out infinite; }
+        
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); filter: blur(4px); }
+            to { opacity: 1; transform: translateY(0); filter: blur(0); }
+        }
+        .fade-in { animation: fadeInUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; }
+
+        /* Premium QR Code Container Styling */
+        .qr-container {
+            background: linear-gradient(145deg, #ffffff, #f3f4f6);
+            padding: 1.5rem;
+            border-radius: 1.5rem;
+            display: inline-flex;
+            flex-direction: column;
+            align-items: center;
+            box-shadow: 0 20px 50px rgba(139, 92, 246, 0.25), inset 0 2px 4px rgba(255,255,255,0.8);
+            margin: 2rem 0;
+            position: relative;
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            transition: transform 0.3s ease;
+        }
+
+        .qr-container:hover {
+            transform: translateY(-4px) scale(1.02);
+        }
+        
+        .qr-scan-text {
+            color: #1f2937;
+            font-weight: 800;
+            margin-top: 1.25rem;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        /* Animated gradient text */
+        .text-gradient {
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-image: linear-gradient(90deg, #c084fc, #ec4899, #c084fc);
+            background-size: 200% auto;
+            animation: shine 4s linear infinite;
+        }
+
+        @keyframes shine {
+            to { background-position: 200% center; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Main Container -->
+    <main class="w-full max-w-3xl mx-auto fade-in">
+        
+        <!-- Header / Logo -->
+        <div class="flex flex-col items-center justify-center mb-8 text-center">
+            <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-[0_0_30px_rgba(147,51,234,0.5)] floating mb-5">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 sm:h-10 sm:w-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+            </div>
+            <h1 class="text-4xl md:text-5xl font-extrabold text-gradient tracking-tight mb-2">Support Us</h1>
+            <p class="text-sm md:text-base text-purple-200/60 font-medium">Empower the magic behind your finances.</p>
+        </div>
+
+        <!-- Content Card -->
+        <div class="glass-card p-6 md:p-12 lg:p-14 text-center relative overflow-hidden">
+            <!-- Decorative Glows -->
+            <div class="absolute -left-24 -top-24 w-72 h-72 bg-purple-500/10 rounded-full blur-3xl pointer-events-none"></div>
+            <div class="absolute -right-24 -bottom-24 w-72 h-72 bg-pink-500/10 rounded-full blur-3xl pointer-events-none"></div>
+            
+            <div class="relative z-10">
+                <p class="text-lg md:text-xl text-white font-medium mb-4 leading-relaxed px-2 md:px-8">
+                    If <span class="text-purple-400 font-bold">Money Mage</span> has helped you manage your finances, consider supporting the project!
+                </p>
+
+                <!-- QR Code Display -->
+                <div class="qr-container floating" style="animation-delay: 0.2s;">
+                    <img 
+                        src="https://lh3.googleusercontent.com/p/AF1QipO-K-wZ9PnvHBjDX8l8y_LIlVJUUtVUt57XFLik=s1360-w1360-h1020-rw" 
+                        alt="Support UPI QR Code" 
+                        class="w-56 h-56 md:w-64 md:h-64 object-cover rounded-xl border border-gray-200 shadow-inner"
+                        onerror="this.onerror=null; this.src='https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=Scan%20to%20Support%20Money%20Mage';"
+                    >
+                    <div class="flex flex-col items-center">
+                        <span class="qr-scan-text flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"></path></svg>
+                            Scan & Pay via UPI
+                        </span>
+                        <span class="text-[10px] text-gray-500 font-bold mt-1 tracking-wider uppercase flex items-center gap-1">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-green-500" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" /></svg>
+                            100% Secure
+                        </span>
+                    </div>
+                </div>
+
+                <p class="text-purple-200/80 text-sm md:text-base max-w-lg mx-auto mb-8 font-medium px-4">
+                    Please consider donating whatever amount you feel comfortable with to help us keep this project magical, ad-free, and accessible for everyone.
+                </p>
+
+                <div class="w-full h-px bg-gradient-to-r from-transparent via-purple-500/30 to-transparent my-8"></div>
+
+                <div class="mb-10">
+                    <h3 class="text-2xl md:text-3xl font-extrabold text-emerald-400 mb-2 drop-shadow-lg">Thank You! 💖</h3>
+                    <p class="text-sm md:text-base text-purple-200/70">For using our platform and supporting our journey.</p>
+                </div>
+                
+                <!-- Action Buttons (Highly Responsive Layout) -->
+                <div class="flex flex-col sm:flex-row items-center justify-center gap-4 w-full px-2">
+                    <!-- Back Button -->
+                    <a href="index.html" class="w-full sm:w-1/2 md:w-auto inline-flex items-center justify-center gap-2 px-6 py-4 rounded-xl border border-white/20 text-white hover:bg-white/10 hover:border-white/40 transition-all font-bold text-sm shadow-[0_4px_15px_rgba(0,0,0,0.2)] backdrop-blur-sm group">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 group-hover:-translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                        </svg>
+                        Back to Dashboard
+                    </a>
+                    
+                    <!-- LinkedIn Link -->
+                    <a href="https://www.linkedin.com/in/prathaamrajoria?utm_source=share_via&utm_content=profile&utm_medium=member_android" target="_blank" rel="noopener noreferrer" class="w-full sm:w-1/2 md:w-auto inline-flex items-center justify-center gap-2 px-6 py-4 rounded-xl border border-blue-500/30 text-blue-300 bg-blue-500/10 hover:bg-blue-500/20 hover:border-blue-500/60 transition-all font-bold text-sm shadow-[0_4px_15px_rgba(59,130,246,0.15)] backdrop-blur-sm group">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 group-hover:scale-110 transition-transform" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/>
+                        </svg>
+                        Connect on LinkedIn
+                    </a>
+                </div>
+            </div>
+        </div>
+    </main>
+
+</body>
+</html>
